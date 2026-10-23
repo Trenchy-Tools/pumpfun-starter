@@ -1,0 +1,105 @@
+/* Theme copied from the TrenchyTools docs site (apps/docs/apps/web/app/site.css): neutral zinc, dark-first. */
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: #ffffff;
+  --foreground: #0b0b0c;
+  --card: #fafafa;
+  --card-foreground: #0b0b0c;
+  --popover: #ffffff;
+  --popover-foreground: #0b0b0c;
+  --primary: #0b0b0c;
+  --primary-foreground: #fafafa;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #0b0b0c;
+  --muted: #f4f4f5;
+  --muted-foreground: #5f5f67;
+  --accent: #f4f4f5;
+  --accent-foreground: #0b0b0c;
+  --destructive: oklch(0.577 0.245 27.325);
+  --ok: oklch(0.55 0.15 150);
+  --warn: oklch(0.68 0.16 70);
+  --border: #e6e6e9;
+  --input: #e6e6e9;
+  --ring: #a1a1aa;
+  --radius: 0.625rem;
+}
+
+.dark {
+  --background: #0b0b0c;
+  --foreground: #ededed;
+  --card: #111113;
+  --card-foreground: #ededed;
+  --popover: #111113;
+  --popover-foreground: #ededed;
+  --primary: #ededed;
+  --primary-foreground: #0b0b0c;
+  --secondary: #161618;
+  --secondary-foreground: #ededed;
+  --muted: #161618;
+  --muted-foreground: #9a9aa2;
+  --accent: #1a1a1d;
+  --accent-foreground: #ededed;
+  --destructive: oklch(0.704 0.191 22.216);
+  --ok: oklch(0.78 0.14 150);
+  --warn: oklch(0.8 0.14 80);
+  --border: #212125;
+  --input: #2a2a2e;
+  --ring: #52525b;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* fonts are loaded in app/layout.tsx with next/font */
+  --font-sans: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-ibm-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    scroll-padding-top: 5rem;
+  }
+  body {
+    @apply bg-background text-foreground;
+    letter-spacing: -0.01em;
+  }
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family: var(--font-mono);
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--foreground) 18%, transparent);
+  }
+}
