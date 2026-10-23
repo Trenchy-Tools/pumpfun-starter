@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400" role="img" aria-label="trenchytools"><title>trenchytools</title>
+  <rect width="400" height="400" rx="88" fill="#0B0B0C"/>
+  <g transform="translate(92.58000000000001 55.68000000000001) scale(0.82)"><g fill="#B4F03C" transform="translate(0 0)">
+    <path d="M14 0H262V96H14A14 14 0 0 1 0 82V14A14 14 0 0 1 14 0Z"/>
+    <path d="M126.5 96H180.5V230L153.5 257L126.5 230Z"/>
+    <path d="M76 180H117.5V233.73L153.5 269.73L189.5 233.73V180H231A14 14 0 0 1 245 194V276C245 300 205 328 160.5 348.5Q153.5 352 146.5 348.5C102 328 62 300 62 276V194A14 14 0 0 1 76 180Z"/>
+  </g></g>
+</svg>
