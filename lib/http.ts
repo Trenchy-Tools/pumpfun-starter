@@ -1,20 +1,29 @@
 /**
  * Route-handler helpers. Every error leaves the server in the same shape the API uses: { error, code?, hint?, docs? }.
- * An ApiError from lib/trenchy.ts is passed through with its status; a NotBackedUpError is 409 not_backed_up.
+ * An ApiError from lib/trenchy.ts is passed through with its status; a NotBackedUpError is 409 not_backed_up (the
+ * shape itself is lib/core/errors.ts, shared with the browser engine of demo mode).
+ *
+ * Demo mode (DEMO_MODE=1, the hosted app): `demoGuard` answers every app/api/* route with 404 demo_mode before the
+ * handler runs, so the hosted container never touches a wallet folder. It is applied once, to every route, by
+ * proxy.ts at the project root.
  */
-import { BACKUP_DIR } from "./paths"
-import { ApiError } from "./trenchy"
-import { NotBackedUpError } from "./wallets"
+import { DEMO_MODE_BODY, errorBody } from "./core/errors"
+
+export { num, strings } from "./core/form"
 
 export const ok = (data: unknown, status = 200) => Response.json(data, { status })
 
 export function fail(err: unknown, status?: number): Response {
-  if (err instanceof NotBackedUpError) return Response.json({ error: err.message, code: err.code, hint: err.hint, publicKey: err.publicKey, dir: BACKUP_DIR }, { status: 409 })
-  // the API's extra fields ride along (no_quote_balance: needed / have / quote / account; creator_fee_not_allowed: min / max)
-  if (err instanceof ApiError) return Response.json({ ...err.extra, error: err.message, code: err.code, hint: err.hint, docs: err.docs }, { status: err.status >= 400 && err.status < 600 ? err.status : 502 })
-  const message = err instanceof Error ? err.message : String(err)
-  const code = (err as { code?: string })?.code
-  return Response.json({ error: message, ...(code ? { code } : {}) }, { status: status ?? 500 })
+  const r = errorBody(err, status)
+  return Response.json(r.body, { status: r.status })
+}
+
+/** True when this server runs as the hosted demo (DEMO_MODE=1): it keeps no state and serves no wallet route. */
+export const isDemoServer = () => process.env.DEMO_MODE === "1"
+
+/** The demo-mode answer for an app/api/* route (404 demo_mode), or null in local mode. */
+export function demoGuard(): Response | null {
+  return isDemoServer() ? Response.json(DEMO_MODE_BODY, { status: 404 }) : null
 }
 
 /** The JSON body of a request, {} when there is none. */
@@ -25,14 +34,6 @@ export async function body<T extends Record<string, unknown>>(req: Request): Pro
     return {}
   }
 }
-
-/** A number from a form field, or the default. */
-export const num = (v: unknown, d: number): number => {
-  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() ? Number(v) : NaN
-  return Number.isFinite(n) ? n : d
-}
-
-export const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && !!x) : [])
 
 /**
  * Server-sent events from a route handler: `start` receives a `send` and returns a cleanup. The stream closes when

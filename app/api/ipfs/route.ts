@@ -1,5 +1,5 @@
 import { fail, ok } from "@/lib/http"
-import { trenchy } from "@/lib/trenchy"
+import { trenchy } from "@/lib/settings"
 
 /** POST /api/ipfs (multipart: file, name, symbol, description, twitter, telegram, website) → passed straight to the API's POST /api/ipfs → { metadataUri }. */
 export async function POST(req: Request) {

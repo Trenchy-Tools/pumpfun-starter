@@ -16,9 +16,11 @@ import { Mono, Table, TBody, TD, TH, THead, TR } from "@/components/ui/table"
 import { toast, toastFailure } from "@/components/ui/toast"
 import { copyText, downloadText, failureOf, failureText, get, post, readChosenCoin, walletsChanged, writeChosenCoin, type ChosenCoin, type Failure } from "@/lib/api"
 import { chain } from "@/lib/chain"
+import { DEMO } from "@/lib/browser/demo"
 
 type Wallet = { publicKey: string; label: string; role: string; createdAt: string; file: string }
-type Folder = { dir: string; wallets: Wallet[]; mainWallet: string | null; archived: number; missing: Array<{ publicKey: string; label: string }> }
+/** `pending`: demo mode only, the wallets whose key has not been downloaded yet (not usable until it is). */
+type Folder = { dir: string; wallets: Wallet[]; mainWallet: string | null; archived: number; missing: Array<{ publicKey: string; label: string }>; pending?: Array<{ publicKey: string; label: string }> }
 type Row = { publicKey: string; native: number; tokens?: number }
 type Venues = { exchange: string; venues: Record<string, { status: string; reason?: string; default?: boolean }> }
 /** One exchange leg, as either starter's fund-exchange route answers it (`signature` on Solana, `depositHash` on EVM). */
@@ -77,6 +79,13 @@ export default function WalletsPage() {
     }
   }, [])
   React.useEffect(() => { void load() }, [load])
+  // demo mode: a backup downloaded from the top bar changes what is usable here
+  React.useEffect(() => {
+    if (!DEMO) return
+    const on = () => void load(false)
+    window.addEventListener("wallets-changed", on)
+    return () => window.removeEventListener("wallets-changed", on)
+  }, [load])
   React.useEffect(() => { get<Venues>("/api/transfer/venues").then(setVenues).catch(() => setVenues(null)) }, [])
 
   // follow exchange legs until they are final (GET /api/transfer/:id)
@@ -190,6 +199,20 @@ export default function WalletsPage() {
     toast({ tone: "ok", title: `Backups rewritten: ${r.files} wallet file${r.files === 1 ? "" : "s"}`, detail: `${r.restored.length} restored from wallets.csv · ${r.csvAdded} CSV line${r.csvAdded === 1 ? "" : "s"} added · ${r.dir}` })
     await changed()
   })
+  // demo mode: the keys live in this browser; the backup is a download
+  const downloadBackup = () => run("backup", async () => {
+    const r = await post<{ count: number; files: string[] }>("/api/wallets/backup")
+    toast(r.count ? { tone: "ok", title: `Backup downloaded: ${r.count} wallet${r.count === 1 ? "" : "s"}, now usable`, detail: <span className="font-mono text-xs break-all">{r.files.join(" · ")}</span> } : { tone: "muted", title: "Every wallet is already backed up" })
+    await changed()
+  })
+  const exportAll = () => run("export-all", async () => {
+    if (!window.confirm(`Download every ${chain.keyNoun} stored in this browser as a JSON + CSV file?
+
+Anyone with the files controls the wallets.`)) return
+    const r = await post<{ count: number; files: string[] }>("/api/wallets/export-all")
+    toast({ tone: "ok", title: `Exported ${r.count} key${r.count === 1 ? "" : "s"}`, detail: <span className="font-mono text-xs break-all">{r.files.join(" · ")}</span> })
+    await changed()
+  })
   const clearCoin = () => { writeChosenCoin(null); setCoin(null); void load() }
 
   const venueList = venues ? Object.entries(venues.venues) : []
@@ -199,11 +222,21 @@ export default function WalletsPage() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h1 className="text-xl font-semibold tracking-tight">Wallets <span className="text-muted-foreground text-base font-normal">{wallets.length}{folder?.archived ? <span className="text-sm"> · {folder.archived} archived</span> : null}</span></h1>
-        <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
-          <span>Keys are saved to <span className="font-mono break-all">{folder?.dir ?? "…"}</span></span>
-          <span>·</span>
-          <button type="button" className="hover:text-foreground underline underline-offset-4" onClick={rewrite} disabled={!!busy}>{busy === "rewrite" ? "Rewriting…" : "Rewrite backups"}</button>
-        </p>
+        {DEMO ? (
+          <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
+            <span>Keys: this browser</span>
+            <span>·</span>
+            <button type="button" className="hover:text-foreground underline underline-offset-4" onClick={downloadBackup} disabled={!!busy}>{busy === "backup" ? "Downloading…" : "Download backup"}</button>
+            <span>·</span>
+            <button type="button" className="hover:text-foreground underline underline-offset-4" onClick={exportAll} disabled={!!busy}>{busy === "export-all" ? "Downloading…" : "Export all keys"}</button>
+          </p>
+        ) : (
+          <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
+            <span>Keys are saved to <span className="font-mono break-all">{folder?.dir ?? "…"}</span></span>
+            <span>·</span>
+            <button type="button" className="hover:text-foreground underline underline-offset-4" onClick={rewrite} disabled={!!busy}>{busy === "rewrite" ? "Rewriting…" : "Rewrite backups"}</button>
+          </p>
+        )}
       </div>
 
       <FailureBox failure={failure} />
@@ -212,6 +245,14 @@ export default function WalletsPage() {
           <span className="text-destructive font-medium">{folder.missing.length} wallet{folder.missing.length === 1 ? "" : "s"} in wallets.csv have no file:</span>
           {folder.missing.map((m) => <Mono key={m.publicKey} className="text-xs">{m.label || chain.short(m.publicKey)}</Mono>)}
           <Button size="xs" variant="outline" className="ml-auto" onClick={rewrite} disabled={!!busy}>Rewrite backups</Button>
+        </div>
+      ) : null}
+
+      {folder?.pending && folder.pending.length > 0 ? (
+        <div className="border-destructive/40 bg-destructive/5 flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+          <span className="text-destructive font-medium">{folder.pending.length} wallet{folder.pending.length === 1 ? " is" : "s are"} not backed up yet: no funding, launching or trading until the key{folder.pending.length === 1 ? " is" : "s are"} downloaded.</span>
+          {folder.pending.slice(0, 8).map((m) => <Mono key={m.publicKey} className="text-xs">{m.label || chain.short(m.publicKey)}</Mono>)}
+          <Button size="xs" className="ml-auto" onClick={downloadBackup} disabled={!!busy}>{busy === "backup" ? "Downloading…" : "Download backup"}</Button>
         </div>
       ) : null}
 
@@ -237,7 +278,7 @@ export default function WalletsPage() {
           <Input type="password" autoComplete="off" placeholder={chain.keyNoun} value={importKey} onChange={(e) => setImportKey(e.target.value)} className="min-w-0 flex-1 font-mono text-xs" onKeyDown={(e) => { if (e.key === "Enter" && importKey.trim()) importWallet() }} />
           <Button onClick={importWallet} disabled={!!busy || !importKey.trim()}>{busy === "import" ? "Writing file…" : "Import"}</Button>
           <Button variant="ghost" onClick={() => { setImportOpen(false); setImportKey("") }} disabled={busy === "import"}>Cancel</Button>
-          <p className="text-muted-foreground w-full text-xs">The key is written to the folder before the wallet shows up. The first wallet ever added becomes ★.</p>
+          <p className="text-muted-foreground w-full text-xs">{DEMO ? "The key is stored in this browser before the wallet shows up; download your backup before using it." : "The key is written to the folder before the wallet shows up."} The first wallet ever added becomes ★.</p>
         </div>
       ) : null}
 

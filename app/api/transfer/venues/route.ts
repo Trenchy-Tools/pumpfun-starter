@@ -1,5 +1,5 @@
 import { fail, ok } from "@/lib/http"
-import { trenchy } from "@/lib/trenchy"
+import { trenchy } from "@/lib/settings"
 
 export const dynamic = "force-dynamic"
 

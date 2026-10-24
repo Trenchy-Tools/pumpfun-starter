@@ -1,6 +1,6 @@
+import { balanceRows } from "@/lib/core/trading"
+import { serverEnv } from "@/lib/env"
 import { fail, ok } from "@/lib/http"
-import { trenchy } from "@/lib/trenchy"
-import { listWallets } from "@/lib/wallets"
 
 export const dynamic = "force-dynamic"
 
@@ -12,16 +12,8 @@ export const dynamic = "force-dynamic"
  */
 export async function GET(req: Request) {
   const q = new URL(req.url).searchParams
-  const mint = q.get("mint") || undefined
-  const quoteMint = q.get("quoteMint") || undefined
-  const wallets = listWallets()
-  if (!wallets.length) return ok({ rows: [] })
   try {
-    const api = trenchy()
-    const keys = wallets.map((w) => w.publicKey)
-    const [rows, quotes] = await Promise.all([api.balances(keys, mint), quoteMint ? api.balances(keys, quoteMint) : Promise.resolve(null)])
-    const quoteBy = new Map((quotes ?? []).map((r) => [r.wallet, r.token?.balance ?? 0]))
-    return ok({ mint: mint ?? null, quoteMint: quoteMint ?? null, rows: rows.map((r) => ({ publicKey: r.wallet, native: r.sol, sol: r.sol, tokens: r.token?.balance ?? 0, raw: r.token?.raw ?? "0", ...(quoteMint ? { quote: quoteBy.get(r.wallet) ?? 0 } : {}) })) })
+    return ok(await balanceRows(serverEnv(), q.get("mint") || undefined, q.get("quoteMint") || undefined))
   } catch (e) {
     return fail(e)
   }

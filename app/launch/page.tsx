@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { ExternalLink } from "lucide-react"
 import { apiFetch, short, useAction, type ApiErrorBody } from "@/lib/client"
+import { appEvents, DEMO, TAB_NOTE } from "@/lib/browser/demo"
 import { chain } from "@/lib/chain"
 import { ApiError } from "@/components/api-error"
 import { WalletPicker, type PickedBuyer } from "@/components/wallet-picker"
@@ -121,7 +122,7 @@ export default function LaunchPage() {
   useEffect(() => {
     if (!launchId) return
     setEvents([])
-    const es = new EventSource(`/api/launch/${launchId}/events`)
+    const es = appEvents(`/api/launch/${launchId}/events`)
     es.onmessage = (m) => { const e = JSON.parse(m.data) as Event; setEvents((xs) => [...xs, e]); if (e.stage === "done" || e.stage === "error") es.close() }
     es.onerror = () => es.close()
     return () => es.close()
@@ -261,6 +262,7 @@ export default function LaunchPage() {
           <Button variant="secondary" onClick={simulate} disabled={busy !== null}>{busy === "simulate" ? "Simulating…" : "Simulate"}</Button>
           <Button onClick={launch} disabled={busy !== null || !f.name || !f.symbol || !metadataUri || (plan !== null && !plan.ok) || (launchId !== null && !events.some((e) => e.stage === "done" || e.stage === "error"))} title={plan && !plan.ok ? "The funding plan is not ok: see the right-hand card" : undefined}>{busy === "launch" ? "Starting…" : "Launch"}</Button>
         </div>
+        {DEMO ? <p className="text-muted-foreground -mt-4 text-xs">{TAB_NOTE}</p> : null}
 
         {sim && (
           <Card className="gap-2">
@@ -344,13 +346,13 @@ export default function LaunchPage() {
         <Card className="gap-2 text-sm">
           <CardTitle>How it runs</CardTitle>
           <ol className="text-muted-foreground list-decimal space-y-1 pl-4 text-xs">
-            <li>The wallets you picked (dev = ★ unless changed); every key must have its file</li>
+            <li>The wallets you picked (dev = ★ unless changed); every key must {DEMO ? "be backed up (downloaded)" : "have its file"}</li>
             <li>Mint key (pool or random), saved to the pool</li>
             <li>Funding transfers from ★ (optional)</li>
             <li>Lookup table for 5–16 buyers (POST /api/sol/lut)</li>
             <li>POST /api/sol/trade-local (array) → sign → POST /api/sol/bundle → poll</li>
             <li>Snipers (POST /api/sol/send each), then holders over the window</li>
-            <li>Record in launches.json; table rent refunded</li>
+            <li>Record in {DEMO ? "this browser" : "launches.json"}; table rent refunded</li>
           </ol>
         </Card>
       </div>

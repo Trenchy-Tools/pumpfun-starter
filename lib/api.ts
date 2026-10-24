@@ -4,7 +4,12 @@
  * The browser side of the app's own routes (app/api/*), shared word for word by the pump.fun and pons starters.
  * Every failure is a Failure carrying exactly what the route (and, through it, the TrenchyTools API) returned:
  * error · code · hint · docs. Show it with <FailureBox> or toastFailure().
+ *
+ * The routes are answered by this app's server in local mode and by the browser engine in demo mode: appFetch /
+ * appEvents (lib/browser/demo.ts) pick which. The pages do not know the difference.
  */
+import { appEvents, appFetch } from "./browser/demo"
+
 export type Failure = { error: string; code?: string; hint?: string; docs?: string; status?: number; publicKey?: string; dir?: string; [k: string]: unknown }
 
 export class FailureError extends Error {
@@ -14,7 +19,7 @@ export class FailureError extends Error {
 }
 
 async function request<T>(path: string, init: RequestInit): Promise<T> {
-  const res = await fetch(path, init)
+  const res = await appFetch(path, init)
   const text = await res.text()
   let data: Record<string, unknown> = {}
   try { data = JSON.parse(text) as Record<string, unknown> } catch { /* not JSON */ }
@@ -33,7 +38,7 @@ export const failureText = (f: Failure) => `${f.error}${f.code ? ` · ${f.code}`
 
 /** Subscribe to one of the app's server-sent-event routes. `onOpen` fires when the stream is connected. Returns the unsubscribe. */
 export function subscribe<T>(path: string, onEvent: (e: T) => void, onOpen?: () => void, onError?: () => void): () => void {
-  const es = new EventSource(path)
+  const es = appEvents(path)
   es.onopen = () => onOpen?.()
   es.onmessage = (m) => { try { onEvent(JSON.parse(m.data) as T) } catch { /* ignore */ } }
   es.onerror = () => onError?.()

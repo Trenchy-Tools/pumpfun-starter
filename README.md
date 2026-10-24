@@ -1,11 +1,11 @@
 <!-- trenchytools:header -->
 <p align="center"><img src="./.github/social.png" alt="pump.fun starter" width="100%"></p>
 
-<p align="center"><a href="https://trenchytools-docs-production.up.railway.app/docs">Docs</a> · <a href="https://api.trenchytools.lol/api/create-api-key">Get an API key</a> · <a href="https://api.trenchytools.lol/AGENTS.md">AGENTS.md</a> · <a href="https://api.trenchytools.lol/openapi.json">OpenAPI</a> · <a href="https://trenchytools-docs-production.up.railway.app/status">Status</a> · <a href="https://t.me/trenchytools">Telegram</a> · <a href="https://x.com/trenchytoolz">X</a></p>
+<p align="center"><a href="https://pumpfun.trenchy.tools"><b>Live demo</b></a> · <a href="https://trenchy.tools/docs">Docs</a> · <a href="https://api.trenchy.tools/api/create-api-key">Get an API key</a> · <a href="https://api.trenchy.tools/AGENTS.md">AGENTS.md</a> · <a href="https://api.trenchy.tools/openapi.json">OpenAPI</a> · <a href="https://trenchy.tools/status">Status</a> · <a href="https://t.me/trenchytools">Telegram</a> · <a href="https://x.com/trenchytoolz">X</a></p>
 
 # pump.fun starter
 
-The official starter for pump.fun launches on the [TrenchyTools API](https://api.trenchytools.lol).
+The official starter for pump.fun launches on the [TrenchyTools API](https://api.trenchy.tools).
 One Next.js app: wallets, Jito-bundled launches with up to 16 buyers, snipers and holder auto-buys, trading with timed sells, vanity mints.
 Keys never leave your machine: the API builds unsigned transactions, this app signs them with files on your Desktop and hands them back.
 
@@ -15,7 +15,7 @@ Keys never leave your machine: the API builds unsigned transactions, this app si
 git clone <this repo> && cd demos/pumpfun-starter
 npm install
 cp .env.example .env
-curl "https://api.trenchytools.lol/api/create-api-key?label=pumpfun-starter"   # → {"apiKey":"…"}; paste it into .env as TRENCHY_API_KEY
+curl "https://api.trenchy.tools/api/create-api-key?label=pumpfun-starter"   # → {"apiKey":"…"}; paste it into .env as TRENCHY_API_KEY
 npm run dev
 ```
 
@@ -100,8 +100,8 @@ per-wallet list — *send 12.5 USDC to 7yhT…* — until every wallet holds eno
 *Fund first* step still tops up SOL. The Trading page labels the Buy input in the quote asset, shows sells as
 `quoteAmount SYMBOL`, and the Wallets page adds a quote-asset balance column when the selected launch is a custom pair.
 
-Docs: [Custom pairs](https://trenchytools-docs-production.up.railway.app/docs/sol/pairs) ·
-[Mayhem mode](https://trenchytools-docs-production.up.railway.app/docs/sol/mayhem).
+Docs: [Custom pairs](https://trenchy.tools/docs/sol/pairs) ·
+[Mayhem mode](https://trenchy.tools/docs/sol/mayhem).
 
 ## Trading & timed sells
 
@@ -125,7 +125,8 @@ the page shows `expectedAttempts`, attempts and rate from `GET /api/sol/vanity/:
 
 [`lib/trenchy.ts`](lib/trenchy.ts) is the whole API client: one documented method per endpoint, `ApiError { status, code, hint, docs }`
 for every error, retries on 429 and on an unreachable host, safe re-send of plain transfers (same signed bytes until the blockhash dies).
-It depends only on `@solana/web3.js` and `bs58`. Copy it into any Node project.
+It depends only on `@solana/web3.js`, `bs58`, `buffer` and [`lib/core/errors.ts`](lib/core/errors.ts), takes the key in its constructor,
+and runs in Node and in the browser alike. Copy it into any project.
 
 Every API error is shown in the UI exactly as returned: `message · code · hint · docs link` ([`components/api-error.tsx`](components/api-error.tsx)).
 
@@ -133,7 +134,7 @@ Every API error is shown in the UI exactly as returned: `message · code · hint
 
 Paste this into your coding agent:
 
-> Read https://api.trenchytools.lol/AGENTS.md first, then `lib/trenchy.ts` in this repo (the API client; one method per endpoint) and
+> Read https://api.trenchy.tools/AGENTS.md first, then `lib/trenchy.ts` in this repo (the API client; one method per endpoint) and
 > `lib/wallets.ts` (the wallet folder rule: every key is a file on disk before it is funded; refuse otherwise). Using only those two
 > files, build me a TypeScript tool that <describe it>. Rules: never invent endpoints, sign every transaction locally with keys from the
 > wallet folder, simulate before the first send (`POST /api/sol/simulate`), start with tiny sizes, show every API error with its `code`,
@@ -149,6 +150,34 @@ docker run -p 3000:3000 -v pumpfun-data:/data -e TRENCHY_API_KEY=… pumpfun-sta
 The image runs Next's standalone server (`node server.js`). Mount a volume at `/data`: wallet files are written to `/data/wallets`
 (`WALLET_BACKUP_DIR` is set in the image). Environment: `TRENCHY_API_KEY`, optional `TRENCHY_API_URL`, `JITO_TIP_LAMPORTS`, `PORT`.
 There is no auth layer: this is a single-user tool. Put it behind your own login or keep it on localhost.
+
+## Hosted demo mode
+
+The public demo (`pumpfun.trenchy.tools`) is this same app built in **demo mode**, so strangers can use it without anyone
+holding their keys:
+
+```bash
+NEXT_PUBLIC_DEMO=1 npm run build          # build-time flag: the pages talk to the in-browser engine
+DEMO_MODE=1 node .next/standalone/server.js   # runtime flag: every /api/* route answers 404 { code: "demo_mode" }
+```
+
+What differs from local mode (which is unchanged without the flags):
+
+- **Keys live in the visitor's browser** (`localStorage`, one entry per wallet, same shape as a wallet file). Signing happens in
+  the tab. The server keeps no state and serves no wallet route ([`proxy.ts`](proxy.ts) → `demoGuard` in `lib/http.ts`).
+- **Backup first:** a new wallet is *not backed up* and cannot be funded, launched with, traded or gathered (`409 not_backed_up`)
+  until **Download backup** (top bar or Wallets page) has saved its key as a JSON + CSV download. **Export all keys** downloads
+  everything any time. Clearing the site's data deletes the keys.
+- **Each visitor gets their own API key**, created in the browser on the first visit (`GET /api/create-api-key?label=demo-pumpfun`)
+  and kept in `localStorage`. Settings shows it masked, takes a pasted key, and shows the API's refusal verbatim when creation is
+  rate-limited. Every API call (and the live-trades websocket) goes straight from the browser to `https://api.trenchy.tools`.
+- **Launches and timed sells run in the tab**: keep it open. Timed sells are kept in `localStorage` and resume on reload.
+- A strict Content-Security-Policy is sent (`next.config.ts`): scripts from this origin only, network to this origin and the API only.
+
+How it is built: the pages call their routes through `appFetch` / `appEvents` ([`lib/browser/demo.ts`](lib/browser/demo.ts)).
+In demo mode those are answered by [`lib/browser/engine.ts`](lib/browser/engine.ts), which has the same routes and shapes and
+runs the same flows as the server ([`lib/core/*`](lib/core): launch executor, trading, funding, vanity, timers), on the
+browser key store ([`lib/browser/keystore.ts`](lib/browser/keystore.ts)).
 
 ## Routes (the backend)
 

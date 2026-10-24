@@ -2,15 +2,17 @@
 
 /**
  * Browser-side helpers: one fetch wrapper that turns every non-2xx answer into the API's error shape
- * ({ error, code, hint, docs }), a hook that runs an action and keeps its error, and small formatters.
+ * ({ error, code, hint, docs }), a hook that runs an action and keeps its error, and small formatters. The app's own
+ * routes are answered by the server in local mode and by the browser engine in demo mode (appFetch, lib/browser/demo.ts).
  */
 import { useCallback, useState } from "react"
+import { appFetch } from "./browser/demo"
 
 export type ApiErrorBody = { error: string; code?: string; hint?: string; docs?: string; status?: number; [k: string]: unknown }
 
 export async function apiFetch<T>(path: string, init: RequestInit & { json?: unknown } = {}): Promise<T> {
   const { json, ...rest } = init
-  const res = await fetch(path, json !== undefined ? { ...rest, method: rest.method ?? "POST", headers: { "content-type": "application/json", ...(rest.headers ?? {}) }, body: JSON.stringify(json) } : rest)
+  const res = await appFetch(path, json !== undefined ? { ...rest, method: rest.method ?? "POST", headers: { "content-type": "application/json", ...(rest.headers ?? {}) }, body: JSON.stringify(json) } : rest)
   const text = await res.text()
   let body: unknown = null
   try { body = JSON.parse(text) } catch { /* not JSON */ }

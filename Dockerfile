@@ -6,6 +6,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+# hosted demo: docker build --build-arg NEXT_PUBLIC_DEMO=1 … and run with -e DEMO_MODE=1 (README: Hosted demo mode)
+ARG NEXT_PUBLIC_DEMO=
+ENV NEXT_PUBLIC_DEMO=$NEXT_PUBLIC_DEMO
 RUN npm run build
 
 FROM node:24-slim
@@ -15,5 +18,5 @@ COPY --from=build /app/.next/standalone ./
 COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
 EXPOSE 3000
-VOLUME ["/data"]
+# mount a volume at /data (docker run -v …:/data); declared here as a comment so platforms that manage volumes (Railway) accept the file
 CMD ["sh", "-c", "mkdir -p /data/wallets && node server.js"]

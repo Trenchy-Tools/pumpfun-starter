@@ -1,11 +1,15 @@
 /**
- * The TrenchyTools API client: the one file that talks to https://api.trenchytools.lol.
+ * The TrenchyTools API client: the one file that talks to https://api.trenchy.tools.
  *
  * Every method names the endpoint it calls. The API builds transactions and sends them; this app signs them locally
  * with keys from the wallet folder and never talks to an RPC node, Jito or IPFS itself.
  *
+ * Client-safe (no node imports): the server libs use it with the key from settings (lib/settings.ts `trenchy()`), the
+ * hosted demo uses the same class in the browser with the visitor's own key (lib/browser/engine.ts). The key is injected
+ * through the constructor; nothing here reads settings.
+ *
  * Copy this file into your own project. It depends only on @solana/web3.js and bs58. Docs for every endpoint:
- * https://api.trenchytools.lol/AGENTS.md and https://trenchytools-docs-production.up.railway.app/openapi.json
+ * https://api.trenchy.tools/AGENTS.md and https://trenchy.tools/openapi.json
  */
 import {
   Keypair,
@@ -17,28 +21,10 @@ import {
   type TransactionInstruction,
 } from "@solana/web3.js"
 import bs58 from "bs58"
-import { effectiveSettings } from "./settings"
+import { Buffer } from "buffer"
+import { ApiError } from "./core/errors"
 
-/**
- * Every API error body is `{ error, code, hint?, docs? }` plus, on some codes, extra fields: `no_quote_balance` carries
- * `needed`, `have`, `quote` and the `account` to fund; `creator_fee_not_allowed` carries `min` / `max`. All of it rides
- * along here (`extra`); show it verbatim, branch on `code`.
- */
-export class ApiError extends Error {
-  constructor(message: string, public status: number, public code?: string, public hint?: string, public docs?: string, public extra: Record<string, unknown> = {}) {
-    super(message)
-    this.name = "ApiError"
-  }
-  /** `needed` / `have` / `quote` / `account` of a 409 no_quote_balance, typed. */
-  get quoteShortfall(): { needed: number; have: number; quote: Quote; account: string } | null {
-    if (this.code !== "no_quote_balance") return null
-    const q = this.extra.quote as Quote | undefined
-    return { needed: Number(this.extra.needed ?? 0), have: Number(this.extra.have ?? 0), quote: q ?? SOL_QUOTE, account: String(this.extra.account ?? "") }
-  }
-  toJSON() {
-    return { ...this.extra, error: this.message, code: this.code, hint: this.hint, docs: this.docs, status: this.status }
-  }
-}
+export { ApiError }
 
 // ── shapes ──────────────────────────────────────────────────────────────────
 
@@ -467,10 +453,4 @@ export class Trenchy {
   async uploadMetadata(form: FormData): Promise<{ metadataUri: string; metadata?: Record<string, unknown> }> {
     return this.call("/api/ipfs", { method: "POST", body: form })
   }
-}
-
-/** The client with the current settings. Cheap: build one per request. */
-export function trenchy(): Trenchy {
-  const { apiUrl, apiKey } = effectiveSettings()
-  return new Trenchy(apiUrl, apiKey)
 }

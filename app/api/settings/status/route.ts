@@ -1,6 +1,7 @@
 import { BACKUP_DIR } from "@/lib/paths"
 import { ok } from "@/lib/http"
-import { ApiError, trenchy } from "@/lib/trenchy"
+import { trenchy } from "@/lib/settings"
+import { ApiError } from "@/lib/trenchy"
 import { fundingWallet, isBackedUp, listWallets } from "@/lib/wallets"
 
 export const dynamic = "force-dynamic"

@@ -1,16 +1,16 @@
 /**
  * Settings: `_app/settings.json` in the wallet folder (written by the Settings sheet) over `.env` defaults.
  *   apiKey           TRENCHY_API_KEY
- *   apiUrl           TRENCHY_API_URL      default https://api.trenchytools.lol
+ *   apiUrl           TRENCHY_API_URL      default https://api.trenchy.tools
  *   jitoTipLamports  JITO_TIP_LAMPORTS    default 5_000_000 (0.005 SOL), paid inside the create transaction of a bundle
  *   slippage         (percent)            default 15
  *   mainWallet       the ★ wallet (public key): pays for everything, receives gathers, is the default creator
  */
+import { DEFAULT_API_URL, DEFAULT_SLIPPAGE, DEFAULT_TIP_LAMPORTS } from "./core/env"
 import { SETTINGS_FILE, readJson, writeJson } from "./paths"
+import { Trenchy } from "./trenchy"
 
-export const DEFAULT_API_URL = "https://api.trenchytools.lol"
-const DEFAULT_TIP_LAMPORTS = 5_000_000
-const DEFAULT_SLIPPAGE = 15
+export { DEFAULT_API_URL }
 
 export type Settings = { apiKey?: string; apiUrl?: string; jitoTipLamports?: number; slippage?: number; mainWallet?: string }
 
@@ -53,4 +53,10 @@ export function effectiveSettings(): Effective {
     slippage: s.slippage ?? DEFAULT_SLIPPAGE,
     apiKeyFrom: s.apiKey ? "settings" : envKey ? "env" : "none",
   }
+}
+
+/** The API client with the current settings (lib/trenchy.ts, key injected). Cheap: build one per request. */
+export function trenchy(): Trenchy {
+  const { apiUrl, apiKey } = effectiveSettings()
+  return new Trenchy(apiUrl, apiKey)
 }

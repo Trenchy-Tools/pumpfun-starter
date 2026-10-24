@@ -16,6 +16,7 @@ import { Mono, Table, TBody, TD, TH, THead, TR } from "@/components/ui/table"
 import { toast, toastFailure } from "@/components/ui/toast"
 import { del, failureOf, get, post, readChosenCoin, subscribe, writeChosenCoin, type Failure } from "@/lib/api"
 import { chain } from "@/lib/chain"
+import { DEMO, TAB_NOTE } from "@/lib/browser/demo"
 
 type Launch = { id: string; name: string; symbol: string; mint?: string | null; token?: string | null; status: string; createdAt: string }
 type Wallet = { publicKey: string; label: string; role: string }
@@ -171,7 +172,7 @@ export default function TradingPage() {
   }
   const addTimer = () => run("timer", async () => {
     await post("/api/trading/timers", { [cp]: coin, publicKeys: picked, percent: Number(timerPct) || 100, minutes: Number(timerMin) || 0 })
-    toast({ tone: "ok", title: `Timed sell set: ${timerPct}% from ${picked.length} wallet${picked.length === 1 ? "" : "s"} in ${timerMin} min`, detail: "Kept in the server's memory; a restart forgets it." })
+    toast({ tone: "ok", title: `Timed sell set: ${timerPct}% from ${picked.length} wallet${picked.length === 1 ? "" : "s"} in ${timerMin} min`, detail: DEMO ? TAB_NOTE : "Kept in the server's memory; a restart forgets it." })
     loadTimers()
   })
   const cancelTimer = (id: string) => run(`cancel:${id}`, async () => { await del(`/api/trading/timers?id=${encodeURIComponent(id)}`); loadTimers() })
@@ -296,7 +297,7 @@ export default function TradingPage() {
 
             {timers.length > 0 ? (
               <div className="flex flex-col gap-1 text-sm">
-                <div className="flex items-center justify-between text-xs"><span className="text-muted-foreground">Timed sells (server memory; a restart forgets them)</span><button type="button" className="text-muted-foreground hover:text-foreground underline-offset-4 hover:underline" onClick={() => void del("/api/trading/timers").then(loadTimers)}>clear finished</button></div>
+                <div className="flex items-center justify-between text-xs"><span className="text-muted-foreground">{DEMO ? "Timed sells (kept in this browser; keep this tab open)" : "Timed sells (server memory; a restart forgets them)"}</span><button type="button" className="text-muted-foreground hover:text-foreground underline-offset-4 hover:underline" onClick={() => void del("/api/trading/timers").then(loadTimers)}>clear finished</button></div>
                 {timers.map((t) => (
                   <div key={t.id} className="flex flex-wrap items-center gap-2 rounded-md border px-3 py-1.5">
                     <Pill tone={t.status === "done" ? "ok" : t.status === "error" ? "error" : t.status === "pending" ? "warn" : "muted"}>{t.status}</Pill>
