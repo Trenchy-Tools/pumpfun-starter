@@ -11,7 +11,7 @@ const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500", "600"], 
 
 export const metadata: Metadata = {
   title: { default: "pump.fun starter · TrenchyTools", template: "%s · pump.fun starter" },
-  description: process.env.NEXT_PUBLIC_DEMO === "1" ? "Launch, bundle and trade pump.fun coins on the TrenchyTools API, from your browser. Your keys stay in this browser." : "Launch, bundle and trade pump.fun coins on the TrenchyTools API. Keys stay in files inside the repo.",
+  description: process.env.NEXT_PUBLIC_DEMO === "1" ? "Launch, bundle and trade pump.fun coins on the TrenchyTools API, from your browser." : "Launch, bundle and trade pump.fun coins on the TrenchyTools API.",
   icons: { icon: "/icon.svg" },
 }
 

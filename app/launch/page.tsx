@@ -41,7 +41,6 @@ const SOL_PAIR: Pair = { mint: "So11111111111111111111111111111111111111112", sy
 const PAIR_GROUPS: Array<{ kind: Pair["kind"]; title: string }> = [{ kind: "stable", title: "Stablecoins" }, { kind: "stock", title: "Tokenized stocks (xStocks)" }, { kind: "crypto", title: "Crypto" }, { kind: "pump", title: "pump.fun coins" }]
 const BUNDLE_COUNTS = [0, 1, 2, 3, 4, 6, 8, 12, 16]
 const HOLDER_COUNTS = [0, 1, 2, 3, 4, 5, 6, 8, 10]
-const SNIPER_COUNTS = [0, 1, 2, 3, 5, 10]
 const DEV_CHIPS = ["0.1", "0.25", "0.5", "1", "2"]
 const ALL_CHIPS = ["0.05", "0.1", "0.25", "0.5", "1"]
 
@@ -211,6 +210,14 @@ export default function LaunchPage() {
     return out
   }
 
+  /** The trenchy.tools coin with our logo and links, and the default launch numbers: one click to a complete form. */
+  const autofill = () => run("autofill", async () => {
+    const blob = await fetch("/demo-logo.png").then((r) => r.blob())
+    setImage(new File([blob], "trenchy-tools.png", { type: "image/png" }))
+    setF((s) => ({ ...s, name: "trenchy.tools", symbol: "TRENCHY", description: "The easiest API to launch and trade with. One key, every launchpad, unsigned transactions you sign yourself.", twitter: "https://x.com/trenchytools", telegram: "https://t.me/trenchytools", website: "https://trenchy.tools", devBuySol: "0.1" }))
+    setBundle(resize([], 2, "0.05")); setHolders([]); setSnipers([]); setMintMode("random"); setQuoteMint(SOL_PAIR.mint); setMayhem(false); setHolderReward(false)
+  })
+
   const simulate = () => run("simulate", async () => {
     setSim(null)
     const metadataUri = image ? await uploadMetadata().catch(() => "") : ""
@@ -269,7 +276,10 @@ export default function LaunchPage() {
 
         {/* ── the coin ── */}
         <Card className="gap-3">
-          <h2 className="text-[15px] font-semibold">Coin</h2>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-[15px] font-semibold">Coin</h2>
+            <Button size="sm" variant="outline" onClick={() => void autofill()} disabled={!!busy || launching} title="Fills every field with the trenchy.tools coin and loads our logo; default launch numbers">{busy === "autofill" ? "Filling…" : "Auto-fill demo data"}</Button>
+          </div>
           <div className="flex items-start gap-4">
             <button
               type="button"
@@ -303,7 +313,19 @@ export default function LaunchPage() {
             <Input inputMode="decimal" className="h-8 w-24 font-mono text-xs" value={f.devBuySol} onChange={set("devBuySol")} aria-label="Dev buy" />
             <span className="text-muted-foreground text-xs">{sym}</span>
             {DEV_CHIPS.map((v) => <Chip key={v} active={f.devBuySol === v} onClick={() => setF((s) => ({ ...s, devBuySol: v }))}>{v}</Chip>)}
-            <span className="text-muted-foreground ml-auto text-xs">dev wallet: {dev ? <>{wallets.find((w) => w.publicKey === dev)?.label ?? chain.short(dev)}{dev === main ? " ★" : ""} · {chain.fmt(balances.get(dev))} SOL</> : "none yet"}</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">Dev wallet</span>
+            {wallets.length ? (
+              <>
+                <Select className="h-8 max-w-sm flex-1 text-xs" value={devWallet} onChange={(e) => setDevWallet(e.target.value)} aria-label="Dev wallet">
+                  {[...wallets].sort((a, b) => (a.publicKey === main ? -1 : b.publicKey === main ? 1 : 0)).map((w) => <option key={w.publicKey} value={w.publicKey === main ? "" : w.publicKey}>{w.publicKey === main ? "★ " : ""}{w.label} · {chain.short(w.publicKey)} · {chain.fmt(balances.get(w.publicKey))} SOL</option>)}
+                </Select>
+                <span className="text-muted-foreground text-xs">creates the coin and pays for everything</span>
+              </>
+            ) : (
+              <span className="text-warn text-xs">No wallets yet. <Link href="/wallets" className="underline underline-offset-4">Create or import one on the Wallets page</Link>; the first one becomes ★ and is the dev wallet.</span>
+            )}
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             <div className="flex flex-col gap-2 rounded-lg border p-3">
@@ -347,7 +369,7 @@ export default function LaunchPage() {
         <Button variant="outline" size="lg" className="h-auto w-full justify-between px-4 py-3 text-left" onClick={() => setAdvanced((v) => !v)} aria-expanded={advanced}>
           <span className="flex min-w-0 flex-col gap-0.5">
             <span className="flex items-center gap-2 font-semibold"><SlidersHorizontal className="size-4" /> Advanced options</span>
-            <span className="text-muted-foreground truncate text-xs font-normal">{advanced ? "pair · Mayhem · holder rewards · creator fee · dev wallet · slippage · Jito · snipers" : `${custom ? `paired with ${sym}` : "paired with SOL"} · ${useJito ? "Jito bundle" : "no bundle"}${mayhem && mayhemAllowed ? " · Mayhem" : ""}${holderReward ? " · holder rewards" : ""}${snipers.length ? ` · ${snipers.length} sniper${snipers.length === 1 ? "" : "s"}` : ""} · dev = ${devWallet ? "custom" : "★"}`}</span>
+            <span className="text-muted-foreground truncate text-xs font-normal">{advanced ? "pair · Mayhem · holder rewards · creator fee · slippage · Jito · funding" : `${custom ? `paired with ${sym}` : "paired with SOL"} · ${useJito ? "Jito bundle" : "no bundle"}${mayhem && mayhemAllowed ? " · Mayhem" : ""}${holderReward ? " · holder rewards" : ""} · slippage ${f.slippage || "15"} %`}</span>
           </span>
           <span className="shrink-0 text-base">{advanced ? "▴" : "▾"}</span>
         </Button>
@@ -360,12 +382,6 @@ export default function LaunchPage() {
                   {PAIR_GROUPS.map((g) => { const list = pairs.filter((p) => p.kind === g.kind && p.source !== "sol"); return list.length ? <optgroup key={g.kind} label={g.title}>{list.map((p) => <option key={p.mint} value={p.mint}>{p.symbol} · {p.name || chain.short(p.mint)}</option>)}</optgroup> : null })}
                 </Select>
               </Field>
-              <Field label="Dev wallet">
-                <Select value={devWallet} onChange={(e) => setDevWallet(e.target.value)}>
-                  <option value="">★ {wallets.find((w) => w.publicKey === main)?.label ?? "main wallet"}</option>
-                  {wallets.filter((w) => w.publicKey !== main).map((w) => <option key={w.publicKey} value={w.publicKey}>{w.label} · {chain.short(w.publicKey)} · {chain.fmt(balances.get(w.publicKey))} SOL</option>)}
-                </Select>
-              </Field>
               <Field label="Slippage (%)"><Input inputMode="numeric" value={f.slippage} onChange={set("slippage")} /></Field>
               {feeAllowed ? <Field label="Creator fee (bps)" hint="100 = 1 %; empty = pump.fun's schedule"><Input inputMode="numeric" placeholder="e.g. 50" value={f.creatorFeeBps} onChange={set("creatorFeeBps")} /></Field> : null}
             </div>
@@ -374,12 +390,6 @@ export default function LaunchPage() {
               <Toggle checked={fundFirst} onChange={setFundFirst} label="Fund the buyers from ★ first" />
               <Toggle checked={mayhem && mayhemAllowed} onChange={(v) => mayhemAllowed && setMayhem(v)} label={<span className={mayhemAllowed ? "" : "opacity-60"}>Mayhem mode{mayhemAllowed ? "" : " (SOL / USDC pairs only)"}</span>} />
               <Toggle checked={holderReward} onChange={setHolderReward} label="Holder rewards (the creator fee goes to holders)" />
-            </div>
-            <div className="flex flex-col gap-2 rounded-lg border p-3">
-              <div className="text-[11px] font-semibold tracking-wide uppercase">Snipers</div>
-              <p className="text-muted-foreground text-xs">Separate buys fired the moment the bundle lands, <Input inputMode="numeric" className="mx-1 inline-block h-6 w-14 px-1.5 text-center font-mono text-xs" value={f.sniperGapMs} onChange={set("sniperGapMs")} aria-label="Sniper gap (ms)" /> ms apart.</p>
-              <div className="flex flex-wrap gap-1">{SNIPER_COUNTS.map((c) => <Chip key={c} active={snipers.length === c} onClick={() => setSnipers(resize(snipers, c, "0.1"))}>{c}</Chip>)}</div>
-              <Rows rows={snipers} onChange={setSnipers} prefix="S" />
             </div>
           </Card>
         ) : null}
@@ -420,7 +430,7 @@ export default function LaunchPage() {
         </Card>
 
         <Card className="gap-2">
-          <ApiCalls calls={sim?.calls} title="Dry run · the API calls" keysWhere={DEMO ? "this browser" : "this machine"} empty="Press Dry run: every call this app makes to api.trenchy.tools shows here with what came back. The API builds unsigned transactions; this app signs them. Nothing is sent." />
+          <ApiCalls calls={sim?.calls} title="Dry run · the API calls" empty="Press Dry run: every call this app makes to api.trenchy.tools shows here with what came back. Nothing is sent." />
         </Card>
 
         {sim ? (

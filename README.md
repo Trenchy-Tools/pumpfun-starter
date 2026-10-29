@@ -7,7 +7,7 @@
 
 The official starter for pump.fun launches on the [TrenchyTools API](https://api.trenchy.tools).
 One Next.js app: wallets, Jito-bundled launches with up to 16 buyers, snipers and holder auto-buys, trading with timed sells, vanity mints.
-Keys never leave your machine: the API builds unsigned transactions, this app signs them with key files kept in the repo's `wallets/` folder and hands them back.
+The API builds the unsigned transactions; this app signs them with the key files in its `wallets/` folder and sends them.
 
 > ### ⚡ Start here
 > **Website:** [trenchy.tools](https://trenchy.tools) · **Docs:** [trenchy.tools/docs](https://trenchy.tools/docs) · **All examples:** [trenchy.tools/docs/examples](https://trenchy.tools/docs/examples) · **Code:** [github.com/Trenchy-Tools](https://github.com/Trenchy-Tools)
