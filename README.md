@@ -6,7 +6,7 @@
 # pump.fun starter
 
 The official starter for pump.fun launches on the [TrenchyTools API](https://api.trenchy.tools).
-One Next.js app: wallets, Jito-bundled launches with up to 16 buyers, snipers and holder auto-buys, trading with timed sells, vanity mints.
+One Next.js app: wallets, Jito-bundled launches with up to 16 buyers, holder auto-buys, trading with timed sells and creator-fee claims, a dry run that shows every API call.
 The API builds the unsigned transactions; this app signs them with the key files in its `wallets/` folder and sends them.
 
 > ### ⚡ Start here
@@ -18,10 +18,10 @@ The API builds the unsigned transactions; this app signs them with the key files
 1. **Get a key** (one call, no account): `curl "https://api.trenchy.tools/api/create-api-key?label=me"` → paste the `apiKey` into `.env` as `TRENCHY_API_KEY`, then `npm install && npm run dev` and open http://localhost:3000.
 2. **Make a wallet.** Wallets → **+ New wallet**. The first one becomes ★ (the main wallet); its key is written to `./wallets` (inside the clone, git-ignored) before it shows up. Send it a little SOL (copy the address from the row).
 3. **Fill the coin in.** Launch → drop an image, type a name and a symbol. The image goes to IPFS by itself when you launch.
-4. **Pick the buys.** Dev buy (0.1–2 SOL chips), how many **Bundle buyers** (0–16) and **Holder wallets** (0–10), an amount each. Every row is a *new wallet* unless you pick an existing one; the **Cost** card on the right shows what leaves ★. Press **Simulate** for a dry run.
+4. **Pick the buys.** Dev buy (0.1–2 SOL chips), how many **Bundle buyers** (0–16) and **Holder wallets** (0–10), an amount each. Every row is a *new wallet* unless you pick an existing one; the **Cost** card on the right shows what leaves the dev wallet. Press **Dry run** to see every API call without sending anything.
 5. **Launch.** The button says what is missing until it says `Launch (x SOL)`. New wallets are created, ★ funds every buyer, the Jito bundle goes out, and the moment the coin is live the **Trading** page opens on it: the GMGN chart, every wallet with its tokens, **25 / 50 / 100 %** sell buttons and timed sells.
 
-Everything else (pair, Mayhem, holder rewards, creator fee, dev wallet, slippage, snipers, Jito) is under **Advanced options** on the Launch page.
+The dev wallet is a select in the Buys card (★ by default). Everything else (pair, Mayhem, holder rewards, creator fee, slippage, Jito, funding) is under **Advanced options**. **Auto-fill demo data** fills the whole form with the trenchy.tools coin and our logo.
 
 ## 5-minute start
 
@@ -33,9 +33,9 @@ curl "https://api.trenchy.tools/api/create-api-key?label=pumpfun-starter"   # �
 npm run dev
 ```
 
-Open http://localhost:3000. The top bar shows three pills: API key state, the ★ wallet + SOL, and the folder your keys live in.
-Press **+ New wallet** on the Wallets page (the first one becomes ★), send it some SOL, and you are ready to launch. The Settings
-sheet (gear icon) checks the key with `GET /api/me` and can hold the key instead of `.env`.
+Open http://localhost:3000. The status dot in the top bar says whether the key is accepted and whether a ★ wallet exists (click it for
+Settings). Press **+ New wallet** on the Wallets page (the first one becomes ★), send it some SOL, and you are ready to launch. Settings
+(the ⋯ menu) checks the key with `GET /api/me` and can hold the key instead of `.env`.
 
 ## Wallets
 
@@ -80,22 +80,22 @@ The Launch page is three things: the coin (image, name, symbol), the buys (dev b
 **holder wallets**, an amount each, every row a *new wallet* unless you pick an existing one) and the mint (random or
 vanity). Press **Launch**: the image goes to IPFS by itself, the new wallets are created (keys saved first), the ★ wallet
 funds every buyer, the bundle goes out, and the moment the coin is live the **Trading** page opens on it with the chart
-and your wallets. Pair, Mayhem, holder rewards, creator fee, dev wallet, slippage, snipers and the Jito switch sit under
-**Advanced ▾**.
+and your wallets. Pair, Mayhem, holder rewards, creator fee, slippage, funding and the Jito switch sit under **Advanced
+options**; the dev wallet is a select in the Buys card.
 
 `lib/launch.ts`, top to bottom. Each step names the endpoint it calls:
 
 0. **Image** — `POST /api/ipfs` with the image + name / symbol / description / links → `metadataUri` (done by the page as Launch starts; Simulate does it too).
-1. **Wallets** — the dev (★ unless changed) is the creator; the bundle, snipers and holders are the rows on the Launch page, each with its own amount (`bundle.wallets: [{ publicKey, amount }]`; `publicKey: null` = a new wallet, created and backed up before anything else; the old `count × solEach` shape still works and picks by role); `assertBackedUp` on every key.
+1. **Wallets** — the dev (★ unless changed) is the creator; the bundle and the holders are the rows on the Launch page (snipers exist in the executor for API users, not in the UI), each with its own amount (`bundle.wallets: [{ publicKey, amount }]`; `publicKey: null` = a new wallet, created and backed up before anything else; the old `count × solEach` shape still works and picks by role); `assertBackedUp` on every key.
 2. **Mint** — a vanity key from the pool (`POST /api/sol/vanity` ground it earlier) or `Keypair.generate()`, saved to the pool as used.
 3. **Funding** (optional) — SOL from the funding wallet to each buyer per the funding plan: buy + 0.5 % API fee + 0.01 SOL reserve; the dev also pays the Jito tip and 0.02 SOL table rent when a table is used. Plain transfers: `GET /api/sol/blockhash` → sign → `POST /api/sol/send` → `GET /api/sol/tx/:sig`.
 4. **Lookup table** (5–16 bundle buyers) — `POST /api/sol/lut` → sign + send each transaction → `GET /api/sol/lut/:address` until `ready`. Closed after the launch (`deactivate`, then `close` ~4 min later) to refund the rent.
 5. **Bundle** — `POST /api/sol/trade-local` with an **array**: the `create` (+ dev buy; its `priorityFee` is the Jito tip) followed by the buys (one wallet per transaction, or `buyers: [...]` + `lookupTable` for 4 per transaction) → sign each → `POST /api/sol/simulate` on the create → `POST /api/sol/bundle` → `GET /api/sol/bundle/:id` and `GET /api/sol/tx/:sig`. If Jito refuses or the bundle does not land, the create goes out alone through `POST /api/sol/send` and the buys follow one by one.
-6. **Snipers** — the moment the create is confirmed: `trade-local` buy → sign → `send`, one every `gapMs` (default 400 ms).
+6. **Snipers** (API form only) — the moment the create is confirmed: `trade-local` buy → sign → `send`, one every `gapMs` (default 400 ms).
 7. **Holders** — after `delayS`, buys spread over `windowS` (default 120 s) with jitter.
 8. **Record** — `launches.json` (mint, wallets by role, signatures, lookup table). Every stage streams to the Launch page as server-sent events (`GET /api/launch/:id/events`); the `live` stage sends the browser to `/trading?mint=…&launch=<id>`, where the same stream keeps showing the holder buys.
 
-**Simulate** runs the checks (key, funding wallet file, balance vs plan) and builds the create + dev buy with a throwaway mint, then `POST /api/sol/simulate`. Nothing is sent.
+**Dry run** runs the checks (key, dev wallet file, balance vs plan), uploads the metadata, builds the create + dev buy with a throwaway mint, then `POST /api/sol/simulate`, and lists every API call it made with what came back. Nothing is sent.
 
 ## Custom pairs and Mayhem
 
