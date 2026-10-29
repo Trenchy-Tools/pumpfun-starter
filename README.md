@@ -1,3 +1,5 @@
+**Start here → [trenchy.tools](https://trenchy.tools)** · part of [TrenchyTools](https://github.com/Trenchy-Tools) — one API key to launch and trade on pump.fun and pons.
+
 <!-- trenchytools:header -->
 <p align="center"><img src="./.github/social.png" alt="pump.fun starter" width="100%"></p>
 
