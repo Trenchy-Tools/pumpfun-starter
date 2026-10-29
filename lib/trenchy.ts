@@ -155,7 +155,23 @@ export class Trenchy {
     return `${this.url.replace(/^http/, "ws")}/api/sol/data?api-key=${encodeURIComponent(this.key)}`
   }
 
+  /** The dry run's trace: while on, every call is recorded (method, path, status, ms, what came back). */
+  private trace: ApiCall[] | null = null
+  beginTrace(): void { this.trace = [] }
+  endTrace(): ApiCall[] { const t = this.trace ?? []; this.trace = null; return t }
   private async call<T>(path: string, init: RequestInit = {}): Promise<T> {
+    if (!this.trace) return this.callRaw<T>(path, init)
+    const t0 = Date.now(), method = (init.method ?? "GET").toUpperCase(), shown = path.replace(/\?format=json$/, "")
+    try {
+      const r = await this.callRaw<T>(path, init)
+      this.trace.push({ method, path: shown, status: 200, ms: Date.now() - t0, note: noteOf(shown, r) })
+      return r
+    } catch (e) {
+      this.trace.push({ method, path: shown, status: e instanceof ApiError ? e.status : 0, ms: Date.now() - t0, error: e instanceof Error ? e.message : String(e) })
+      throw e
+    }
+  }
+  private async callRaw<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (!this.key) throw new ApiError(`No TrenchyTools API key. Create one at ${this.url}/api/create-api-key?label=pumpfun-starter and paste it in Settings.`, 401, "no_key")
     const headers = new Headers(init.headers)
     headers.set("x-api-key", this.key)
@@ -453,4 +469,38 @@ export class Trenchy {
   async uploadMetadata(form: FormData): Promise<{ metadataUri: string; metadata?: Record<string, unknown> }> {
     return this.call("/api/ipfs", { method: "POST", body: form })
   }
+}
+
+// ── the dry run's trace ───────────────────────────────────────────────────
+
+/** One call of the dry run (components/api-calls.tsx shows the list). */
+export type ApiCall = { method: string; path: string; status: number; ms: number; note?: string; error?: string }
+
+/** One line about what an answer held, for the trace: the fields a reader of the docs would look for. */
+function noteOf(path: string, r: unknown): string {
+  const o = (r && typeof r === "object" ? r : {}) as Record<string, unknown>
+  const n = (v: unknown) => (typeof v === "number" ? v.toLocaleString("en-US", { maximumFractionDigits: 4 }) : String(v))
+  const parts: string[] = []
+  if (typeof o.metadataUri === "string") parts.push(`metadataUri ${o.metadataUri}`)
+  if (typeof o.transaction === "string") parts.push(`unsigned transaction, ${Math.round(o.transaction.length * 0.75)} bytes, you sign it`)
+  if (Array.isArray(o.transactions)) parts.push(`${o.transactions.length} unsigned transaction${o.transactions.length === 1 ? "" : "s"}${o.transactions.every((t) => t && typeof t === "object" && "label" in t) ? ` (${(o.transactions as Array<{ label: string }>).map((t) => t.label).join(", ")})` : ""}, you sign them`)
+  const exp = o.expected as Record<string, unknown> | undefined
+  if (exp && typeof exp.tokens === "number") parts.push(`~${n(exp.tokens)} tokens expected`)
+  const pred = o.predicted as Record<string, unknown> | undefined
+  if (pred && typeof pred.token === "string") parts.push(`coin will be ${pred.token}`)
+  if (typeof o.unitsConsumed === "number" && o.ok !== false) parts.push(`simulated ok, ${n(o.unitsConsumed)} compute units`)
+  if (Array.isArray(o.steps)) parts.push(`${(o.steps as Array<{ ok?: boolean }>).filter((s) => s.ok).length}/${o.steps.length} steps simulate ok`)
+  if (o.ok === false && o.err !== undefined) parts.push(`simulation failed: ${JSON.stringify(o.err).slice(0, 80)}`)
+  if (typeof o.keyPrefix === "string") parts.push(`key ${o.keyPrefix}… accepted`)
+  if (typeof o.balanceEth === "string" || typeof o.balanceEth === "number") parts.push(`balance ${n(o.balanceEth)} ETH`)
+  if (typeof o.sol === "number") parts.push(`balance ${n(o.sol)} SOL`)
+  if (Array.isArray(o.balances)) parts.push(`${o.balances.length} balance${o.balances.length === 1 ? "" : "s"}`)
+  if (Array.isArray(o.wallets)) parts.push(`${o.wallets.length} wallet balance${o.wallets.length === 1 ? "" : "s"}`)
+  if (Array.isArray(o.pairs)) parts.push(`${o.pairs.length} pairs a coin can be priced in`)
+  if (Array.isArray(o.venues)) parts.push(`${o.venues.length} exchange venues, with health`)
+  if (typeof o.blockhash === "string") parts.push("recent blockhash")
+  if (typeof o.priorityFee === "number" || typeof o.microLamports === "number") parts.push("priority fee estimate")
+  if (parts.length) return parts.join(" · ")
+  const keys = Object.keys(o)
+  return keys.length ? `{ ${keys.slice(0, 6).join(", ")}${keys.length > 6 ? ", …" : ""} }` : path.includes("/api/me") ? "ok" : "ok"
 }

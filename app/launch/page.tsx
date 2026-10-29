@@ -10,8 +10,10 @@
  * Everything else (pair, Mayhem, holder rewards, creator fee, dev wallet, slippage, snipers, Jito) sits under Advanced.
  */
 import * as React from "react"
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ImagePlus, SlidersHorizontal } from "lucide-react"
+import { ApiCalls, type ApiCall } from "@/components/api-calls"
 import { FailureBox } from "@/components/failure"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -31,7 +33,7 @@ type Pair = { mint: string; symbol: string; name?: string | null; decimals: numb
 type PoolView = { available: number; used: number }
 type Job = { status: "idle" | "running" | "done" | "failed"; attempts: number; expectedAttempts: number; rate: number; found: string | null; error: string | null }
 type Event = { at: number; stage: string; message: string; signature?: string; mint?: string; link?: string }
-type Simulate = { ok: boolean; checks: Array<{ name: string; ok: boolean; detail: string }>; simulation: { ok: boolean; logs: string[] } | null }
+type Simulate = { ok: boolean; checks: Array<{ name: string; ok: boolean; detail: string }>; simulation: { ok: boolean; logs: string[] } | null; calls?: ApiCall[] }
 /** One buyer row: a wallet of the folder, or null = a new wallet made at launch; the amount as typed. */
 type Row = { publicKey: string | null; amount: string }
 
@@ -337,7 +339,7 @@ export default function LaunchPage() {
                 {job?.status === "failed" && job.error ? <span className="text-destructive">{job.error}</span> : null}
                 <Button size="xs" variant="outline" className="ml-auto" onClick={grind} disabled={!!busy || job?.status === "running"}>{job?.status === "running" ? "Grinding…" : "Grind one"}</Button>
               </div>
-            ) : <span className="text-muted-foreground text-xs">Keypair.generate(); a vanity mint ends in …pump and comes from the pool (POST /api/sol/vanity grinds it).</span>}
+            ) : <span className="text-muted-foreground text-xs">a random keypair. Vanity: ends in …pump, from the pool (<Link href="/vanity" className="underline underline-offset-4">manage the pool</Link>).</span>}
           </div>
         </Card>
 
@@ -384,7 +386,7 @@ export default function LaunchPage() {
 
         <FailureBox failure={failure} />
         <div className="flex gap-3">
-          <Button variant="secondary" size="lg" className="flex-1" onClick={simulate} disabled={!!busy || launching || !main}>{busy === "simulate" ? "Simulating…" : "Simulate"}</Button>
+          <Button variant="secondary" size="lg" className="flex-1" onClick={simulate} disabled={!!busy || launching || !main} title="Builds the create against the API and simulates it. Every API call is listed on the right. Nothing is sent.">{busy === "simulate" ? "Dry run…" : "Dry run · see every API call"}</Button>
           <Button size="lg" className={`flex-[2] ${short ? "bg-destructive hover:bg-destructive/90 text-white" : ""}`} onClick={launch} disabled={!!busy || launching || !!blocker}>
             {busy === "launch" ? "Starting…" : launching ? "Launching…" : blocker ?? `Launch (${plan ? plan.total.toFixed(3) : "…"} SOL)`}
           </Button>
@@ -412,9 +414,13 @@ export default function LaunchPage() {
                 {plan.custom ? <div className="text-muted-foreground flex justify-between text-xs"><span>{plan.quote.symbol} across the wallets</span><Mono className="text-xs">{plan.totalQuote}</Mono></div> : null}
               </div>
               {plan.shortfalls.length ? <p className="text-destructive text-xs">Short of {plan.quote.symbol}: {plan.shortfalls.map((s) => `${s.label} needs ${s.send}`).join("; ")}. This app moves SOL only; send the {plan.quote.symbol} first.</p> : null}
-              <p className="text-muted-foreground text-xs">Each buy becomes tokens; the API fee is 0.5 % of it; 0.01 SOL stays in every wallet for fees and rent (Gather on the Wallets page brings it back). ★ holds {mainBalance === undefined ? "…" : `${mainBalance.toFixed(4)} SOL`}.</p>
+              <p className="text-muted-foreground text-xs">buy + 0.5 % API fee + 0.01 SOL reserve per wallet · ★ holds {mainBalance === undefined ? "…" : `${mainBalance.toFixed(4)} SOL`}</p>
             </>
           ) : <p className="text-muted-foreground text-sm">…</p>}
+        </Card>
+
+        <Card className="gap-2">
+          <ApiCalls calls={sim?.calls} title="Dry run · the API calls" keysWhere={DEMO ? "this browser" : "this machine"} empty="Press Dry run: every call this app makes to api.trenchy.tools shows here with what came back. The API builds unsigned transactions; this app signs them. Nothing is sent." />
         </Card>
 
         {sim ? (
@@ -443,19 +449,7 @@ export default function LaunchPage() {
               {launching ? <span className="text-muted-foreground">…</span> : null}
             </div>
           </Card>
-        ) : (
-          <Card className="gap-2 text-sm">
-            <h2 className="text-[15px] font-semibold">How it runs</h2>
-            <ol className="text-muted-foreground list-decimal space-y-1 pl-4 text-xs">
-              <li>Image + details go to IPFS (POST /api/ipfs)</li>
-              <li>"new wallet" rows are created, keys saved first</li>
-              <li>★ funds every buyer (buy + fee + 0.01 reserve)</li>
-              <li>Create + dev buy + bundle buys in one Jito bundle (POST /api/sol/trade-local → sign here → POST /api/sol/bundle)</li>
-              <li>Holders buy after the delay</li>
-              <li>The Trading page opens on the coin: chart, your wallets, sell buttons</li>
-            </ol>
-          </Card>
-        )}
+        ) : null}
       </div>
     </div>
   )

@@ -342,7 +342,7 @@ route("POST", /^\/api\/launch$/, async (req) => {
 route("GET", /^\/api\/launch\/pairs$/, async (req) => ok(await api().pairs(new URL(req.url).searchParams.get("refresh") === "1")))
 route("POST", /^\/api\/launch\/plan$/, async (req) => ok(await launch.fundingPlan(env(), await form(req))))
 route("POST", /^\/api\/launch\/fund$/, async (req) => ok({ results: await launch.fundPlan(env(), await form(req)) }))
-route("POST", /^\/api\/launch\/simulate$/, async (req) => ok(await launch.simulateLaunch(env(), await form(req))))
+route("POST", /^\/api\/launch\/simulate$/, async (req) => { const e = env(); e.api.beginTrace(); const r = await launch.simulateLaunch(e, await form(req)); return ok({ ...r, calls: e.api.endTrace() }) })
 route("GET", /^\/api\/launch\/([^/]+)$/, (_req, [id]) => { const rec = readLaunches().find((l) => l.id === id); return rec ? ok(rec) : fail(new Error("Launch not found"), 404) })
 
 // IPFS: the visitor's FormData goes straight to the API with their key

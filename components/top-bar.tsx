@@ -7,20 +7,23 @@ import { Settings } from "lucide-react"
 import { apiFetch } from "@/lib/client"
 import { cn } from "@/lib/cn"
 import { Logo } from "./logo"
+import { MoreMenu } from "./more-menu"
 import { SettingsSheet } from "./settings-sheet"
-import { SiteLinks } from "./site-links"
-import { StatusStrip, type Status } from "./status-strip"
+import { type Status } from "./status-strip"
 import { ThemeToggle } from "./theme-toggle"
-import { Button } from "./ui/button"
 
 const NAV = [
   { href: "/launch", label: "Launch" },
   { href: "/trading", label: "Trading" },
   { href: "/wallets", label: "Wallets" },
-  { href: "/vanity", label: "Vanity" },
 ]
+const LIVE = "https://pumpfun.trenchy.tools"
+const REPO = "https://github.com/Trenchy-Tools/trenchytools-pumpfun-launcher"
 
-/** logo · Launch · Trading · Wallets · Vanity · (right) API key · funding wallet · backups folder · theme · settings */
+/**
+ * Seven targets: wordmark · Launch · Trading · Wallets · one status dot (opens Settings) · Get an API key · ⋯ menu
+ * (docs, examples, GitHub, theme, Settings). Everything about keys, wallets and folders lives behind the dot.
+ */
 export function TopBar() {
   const pathname = usePathname()
   const [status, setStatus] = useState<Status | null>(null)
@@ -30,10 +33,14 @@ export function TopBar() {
   useEffect(() => {
     refresh()
     const t = setInterval(refresh, 30_000)
-    const onFocus = () => refresh()
-    window.addEventListener("wallets-changed", onFocus)
-    return () => { clearInterval(t); window.removeEventListener("wallets-changed", onFocus) }
+    window.addEventListener("wallets-changed", refresh)
+    return () => { clearInterval(t); window.removeEventListener("wallets-changed", refresh) }
   }, [refresh])
+
+  // the dot: green = key accepted and a ★ wallet exists; amber = something to do; red = the key is rejected
+  const pending = status?.backups.pending ?? 0
+  const tone = !status ? "bg-muted-foreground" : status.api.configured && !status.api.connected ? "bg-destructive" : status.api.connected && status.funding && !pending ? "bg-ok" : "bg-warn"
+  const text = !status ? "checking…" : status.api.configured && !status.api.connected ? `API key rejected${status.api.code ? ` (${status.api.code})` : ""}` : !status.api.connected ? "no API key yet" : !status.funding ? "key ok · no ★ wallet yet" : pending ? `${pending} wallet${pending === 1 ? "" : "s"} not backed up` : `key ok · ★ ${status.funding.sol === null ? "" : `${status.funding.sol.toFixed(3)} SOL`}`
 
   return (
     <header className="bg-background/80 sticky top-0 z-40 border-b backdrop-blur-md">
@@ -49,12 +56,15 @@ export function TopBar() {
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-2">
-          <SiteLinks current="https://pumpfun.trenchy.tools" repo="https://github.com/Trenchy-Tools/trenchytools-pumpfun-launcher" className="mr-2" />
-          <StatusStrip status={status} onOpenSettings={() => setSettingsOpen(true)} />
-          <ThemeToggle className="hidden sm:flex" />
-          <Button variant="outline" size="icon-sm" aria-label="Settings" onClick={() => setSettingsOpen(true)}>
-            <Settings />
-          </Button>
+          <button type="button" onClick={() => setSettingsOpen(true)} className="text-muted-foreground hover:text-foreground inline-flex h-8 items-center gap-2 rounded-md border px-2.5 text-xs transition-colors" title={`${text}. Click for Settings.`}>
+            <span className={cn("size-2 rounded-full", tone)} />
+            <span className="hidden sm:inline">{text}</span>
+          </button>
+          <a href="https://trenchy.tools/docs/api-keys" target="_blank" rel="noreferrer" className="bg-foreground text-background inline-flex h-8 items-center rounded-md px-3 text-sm font-medium whitespace-nowrap transition-opacity hover:opacity-90">Get an API key</a>
+          <MoreMenu current={LIVE} repo={REPO}>
+            <div className="flex items-center justify-between px-2.5 py-1.5 text-sm"><span>Theme</span><ThemeToggle /></div>
+            <button type="button" className="hover:bg-muted flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm" onClick={() => setSettingsOpen(true)}><Settings className="size-4" /> Settings</button>
+          </MoreMenu>
         </div>
       </div>
       <SettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} status={status} onSaved={refresh} />
