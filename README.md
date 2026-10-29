@@ -1,13 +1,13 @@
 <!-- trenchytools:header -->
 <p align="center"><img src="./.github/social.png" alt="pump.fun starter" width="100%"></p>
 
-<p align="center"><a href="https://pumpfun.trenchy.tools"><b>Live demo</b></a> · <a href="https://trenchy.tools/docs">Docs</a> · <a href="https://api.trenchy.tools/api/create-api-key">Get an API key</a> · <a href="https://api.trenchy.tools/AGENTS.md">AGENTS.md</a> · <a href="https://api.trenchy.tools/openapi.json">OpenAPI</a> · <a href="https://trenchy.tools/status">Status</a> · <a href="https://t.me/trenchytools">Telegram</a> · <a href="https://x.com/trenchytoolz">X</a></p>
+<p align="center"><a href="https://pumpfun.trenchy.tools"><b>Live demo</b></a> · <a href="https://trenchy.tools/docs">Docs</a> · <a href="https://api.trenchy.tools/api/create-api-key">Get an API key</a> · <a href="https://api.trenchy.tools/AGENTS.md">AGENTS.md</a> · <a href="https://api.trenchy.tools/openapi.json">OpenAPI</a> · <a href="https://trenchy.tools/status">Status</a> · <a href="https://t.me/trenchytools">Telegram</a> · <a href="https://x.com/trenchytools">X</a></p>
 
 # pump.fun starter
 
 The official starter for pump.fun launches on the [TrenchyTools API](https://api.trenchy.tools).
 One Next.js app: wallets, Jito-bundled launches with up to 16 buyers, snipers and holder auto-buys, trading with timed sells, vanity mints.
-Keys never leave your machine: the API builds unsigned transactions, this app signs them with files on your Desktop and hands them back.
+Keys never leave your machine: the API builds unsigned transactions, this app signs them with key files kept in the repo's `wallets/` folder and hands them back.
 
 > ### ⚡ Start here
 > **Website:** [trenchy.tools](https://trenchy.tools) · **Docs:** [trenchy.tools/docs](https://trenchy.tools/docs) · **All examples:** [trenchy.tools/docs/examples](https://trenchy.tools/docs/examples) · **Code:** [github.com/Trenchy-Tools](https://github.com/Trenchy-Tools)
@@ -16,7 +16,7 @@ Keys never leave your machine: the API builds unsigned transactions, this app si
 ## Tutorial: your first launch in 5 steps
 
 1. **Get a key** (one call, no account): `curl "https://api.trenchy.tools/api/create-api-key?label=me"` → paste the `apiKey` into `.env` as `TRENCHY_API_KEY`, then `npm install && npm run dev` and open http://localhost:3000.
-2. **Make a wallet.** Wallets → **+ New wallet**. The first one becomes ★ (the main wallet); its key is written to `~/Desktop/trenchytools-wallets` before it shows up. Send it a little SOL (copy the address from the row).
+2. **Make a wallet.** Wallets → **+ New wallet**. The first one becomes ★ (the main wallet); its key is written to `./wallets` (inside the clone, git-ignored) before it shows up. Send it a little SOL (copy the address from the row).
 3. **Fill the coin in.** Launch → drop an image, type a name and a symbol. The image goes to IPFS by itself when you launch.
 4. **Pick the buys.** Dev buy (0.1–2 SOL chips), how many **Bundle buyers** (0–16) and **Holder wallets** (0–10), an amount each. Every row is a *new wallet* unless you pick an existing one; the **Cost** card on the right shows what leaves ★. Press **Simulate** for a dry run.
 5. **Launch.** The button says what is missing until it says `Launch (x SOL)`. New wallets are created, ★ funds every buyer, the Jito bundle goes out, and the moment the coin is live the **Trading** page opens on it: the GMGN chart, every wallet with its tokens, **25 / 50 / 100 %** sell buttons and timed sells.
@@ -54,7 +54,7 @@ Every wallet this app makes is a file, written **before** the wallet is handed b
 
 ```
 WALLET_BACKUP_DIR                       when set in .env
-~/Desktop/trenchytools-wallets          otherwise (or ~/trenchytools-wallets without a Desktop)
+./wallets                               otherwise: inside the cloned repo, git-ignored
   2026-10-23T02-15-09-443Z-sol-bundle-7yhTk….json   { publicKey, privateKey (base58), chain, role, label, createdAt, app }
   wallets.csv                                        createdAt,chain,role,label,publicKey,privateKey (one line per wallet)
   _app/pumpfun-starter/                              settings.json, launches.json, vanity-pool.json
@@ -216,4 +216,4 @@ browser key store ([`lib/browser/keystore.ts`](lib/browser/keystore.ts)).
 | `GET/PUT /api/settings`, `GET /api/settings/status` | settings · the top-bar pills |
 | `POST /api/ipfs` | multipart passthrough to the API's `POST /api/ipfs` |
 
-MIT. Support: Telegram https://t.me/trenchytools · X @trenchytoolz.
+MIT. Support: Telegram https://t.me/trenchytools · X @trenchytools.

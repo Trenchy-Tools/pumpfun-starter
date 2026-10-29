@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "license": "MIT",
-  "description": "The official pump.fun launch starter on the TrenchyTools API: one Next.js app, keys as files on your Desktop.",
+  "description": "The official pump.fun launch starter on the TrenchyTools API: one Next.js app, keys as files in the repo's wallets/ folder.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

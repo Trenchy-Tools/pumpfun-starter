@@ -1,23 +1,20 @@
 /**
  * Where this app keeps its files. There is exactly one folder: the wallet backup folder.
  *
- *   WALLET_BACKUP_DIR            when set
- *   ~/Desktop/trenchytools-wallets   when a Desktop folder exists
- *   ~/trenchytools-wallets       otherwise
+ *   WALLET_BACKUP_DIR     when set (point all three starters at one folder to share wallets)
+ *   ./wallets             otherwise: inside the cloned repo (git-ignored), next to the code that uses it
  *
  * Wallet files live at its top level (one JSON per wallet + wallets.csv); sibling starters share the folder, each
  * tagging its files with a `chain`. This app's own state sits in `_app/pumpfun-starter/`: settings.json,
  * launches.json, vanity-pool.json. Nothing else is stored anywhere.
  */
 import fs from "node:fs"
-import os from "node:os"
 import path from "node:path"
 
 export const BACKUP_DIR: string = (() => {
   const env = (process.env.WALLET_BACKUP_DIR || "").trim()
   if (env) return path.resolve(env)
-  const desktop = path.join(os.homedir(), "Desktop")
-  return path.join(fs.existsSync(desktop) ? desktop : os.homedir(), "trenchytools-wallets")
+  return path.join(process.cwd(), "wallets")
 })()
 
 export const APP_DIR = path.join(BACKUP_DIR, "_app", "pumpfun-starter")

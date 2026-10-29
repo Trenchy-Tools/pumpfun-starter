@@ -5,3 +5,5 @@ node_modules
 next-env.d.ts
 *.tsbuildinfo
 .vercel
+# wallet keys live here by default; never commit them
+/wallets/
