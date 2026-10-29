@@ -9,10 +9,24 @@ The official starter for pump.fun launches on the [TrenchyTools API](https://api
 One Next.js app: wallets, Jito-bundled launches with up to 16 buyers, snipers and holder auto-buys, trading with timed sells, vanity mints.
 Keys never leave your machine: the API builds unsigned transactions, this app signs them with files on your Desktop and hands them back.
 
+> ### ⚡ Start here
+> **Website:** [trenchy.tools](https://trenchy.tools) · **Docs:** [trenchy.tools/docs](https://trenchy.tools/docs) · **All examples:** [trenchy.tools/docs/examples](https://trenchy.tools/docs/examples) · **Code:** [github.com/Trenchy-Tools](https://github.com/Trenchy-Tools)
+> **Try it without installing:** [pumpfun.trenchy.tools](https://pumpfun.trenchy.tools) (wallets stay in your browser; download the backup before funding anything)
+
+## Tutorial: your first launch in 5 steps
+
+1. **Get a key** (one call, no account): `curl "https://api.trenchy.tools/api/create-api-key?label=me"` → paste the `apiKey` into `.env` as `TRENCHY_API_KEY`, then `npm install && npm run dev` and open http://localhost:3000.
+2. **Make a wallet.** Wallets → **+ New wallet**. The first one becomes ★ (the main wallet); its key is written to `~/Desktop/trenchytools-wallets` before it shows up. Send it a little SOL (copy the address from the row).
+3. **Fill the coin in.** Launch → drop an image, type a name and a symbol. The image goes to IPFS by itself when you launch.
+4. **Pick the buys.** Dev buy (0.1–2 SOL chips), how many **Bundle buyers** (0–16) and **Holder wallets** (0–10), an amount each. Every row is a *new wallet* unless you pick an existing one; the **Cost** card on the right shows what leaves ★. Press **Simulate** for a dry run.
+5. **Launch.** The button says what is missing until it says `Launch (x SOL)`. New wallets are created, ★ funds every buyer, the Jito bundle goes out, and the moment the coin is live the **Trading** page opens on it: the GMGN chart, every wallet with its tokens, **25 / 50 / 100 %** sell buttons and timed sells.
+
+Everything else (pair, Mayhem, holder rewards, creator fee, dev wallet, slippage, snipers, Jito) is under **Advanced options** on the Launch page.
+
 ## 5-minute start
 
 ```bash
-git clone <this repo> && cd demos/pumpfun-starter
+git clone https://github.com/Trenchy-Tools/trenchytools-pumpfun-launcher && cd trenchytools-pumpfun-launcher
 npm install
 cp .env.example .env
 curl "https://api.trenchy.tools/api/create-api-key?label=pumpfun-starter"   # → {"apiKey":"…"}; paste it into .env as TRENCHY_API_KEY

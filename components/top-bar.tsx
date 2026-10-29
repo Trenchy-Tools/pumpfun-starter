@@ -8,6 +8,7 @@ import { apiFetch } from "@/lib/client"
 import { cn } from "@/lib/cn"
 import { Logo } from "./logo"
 import { SettingsSheet } from "./settings-sheet"
+import { SiteLinks } from "./site-links"
 import { StatusStrip, type Status } from "./status-strip"
 import { ThemeToggle } from "./theme-toggle"
 import { Button } from "./ui/button"
@@ -48,6 +49,7 @@ export function TopBar() {
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-2">
+          <SiteLinks current="https://pumpfun.trenchy.tools" repo="https://github.com/Trenchy-Tools/trenchytools-pumpfun-launcher" className="mr-2" />
           <StatusStrip status={status} onOpenSettings={() => setSettingsOpen(true)} />
           <ThemeToggle className="hidden sm:flex" />
           <Button variant="outline" size="icon-sm" aria-label="Settings" onClick={() => setSettingsOpen(true)}>
