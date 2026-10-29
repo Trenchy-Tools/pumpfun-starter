@@ -22,7 +22,7 @@
  */
 import * as launch from "../core/launch"
 import * as trading from "../core/trading"
-import { closeEmpty, fundDirect, fundViaExchange, gather } from "../core/funding"
+import { closeEmpty, fundDirect, fundViaExchange, gather, sendDirect } from "../core/funding"
 import { DEFAULT_SLIPPAGE, DEFAULT_TIP_LAMPORTS, type WalletStore } from "../core/env"
 import { RouteError, errorBody } from "../core/errors"
 import { num, readForm, strings } from "../core/form"
@@ -280,6 +280,15 @@ route("POST", /^\/api\/wallets\/(fund-exchange|fund-via-exchange)$/, async (req)
   const b = await body<{ publicKeys: string[]; amount: number; amountSol: number; mode: string; venue: string }>(req)
   const mode = (["float", "fixed", "private"].includes(String(b.mode)) ? b.mode : "float") as TransferMode
   return ok(await fundViaExchange(env(), strings(b.publicKeys), num(b.amount ?? b.amountSol, 0), mode, typeof b.venue === "string" && b.venue ? b.venue : "random"))
+})
+route("POST", /^\/api\/wallets\/send$/, async (req) => {
+  const b = await body<{ publicKeys: string[]; to: string; amount: number | string }>(req)
+  const from = strings(b.publicKeys)
+  if (!from.length) throw new RouteError("publicKeys: at least one wallet")
+  if (typeof b.to !== "string" || b.to.length < 32) throw new RouteError("to: a Solana address")
+  const amount = b.amount === "max" ? "max" : num(b.amount, 0)
+  if (amount !== "max" && !(amount > 0)) throw new RouteError('amount: SOL, or "max"')
+  return ok(await sendDirect(env(), from, b.to, amount))
 })
 route("POST", /^\/api\/wallets\/gather$/, async (req) => ok(await gather(env(), strings((await body<{ publicKeys: string[] }>(req)).publicKeys))))
 route("POST", /^\/api\/wallets\/close-accounts$/, async (req) => ok(await closeEmpty(env(), strings((await body<{ publicKeys: string[] }>(req)).publicKeys))))

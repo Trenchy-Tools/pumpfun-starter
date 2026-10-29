@@ -88,26 +88,38 @@ export async function fundViaExchange({ api, wallets }: Ctx, targets: string[], 
 const TX_FEE_LAMPORTS = 5000
 
 /** Sweep every lamport but the fee from each wallet back to the ★ wallet (the source key must be backed up). */
-export async function gather({ api, wallets }: Ctx, publicKeys: string[]) {
-  const funding = wallets.main()
+export async function gather(ctx: Ctx, publicKeys: string[]) {
+  const funding = ctx.wallets.main()
   if (!funding) throw new RouteError("No funding wallet yet")
   const targets = publicKeys.filter((pk) => pk !== funding.publicKey)
   if (!targets.length) throw new RouteError("publicKeys: at least one wallet (not the funding wallet)")
-  const fundingPk = wallets.keypairOf(funding.publicKey).publicKey
-  const sol = new Map((await api.balances(targets)).map((r) => [r.wallet, r.sol]))
-  const results: Array<{ publicKey: string; recovered: number; signature?: string; error?: string }> = []
-  for (const pk of targets) {
-    const lamports = Math.round((sol.get(pk) ?? 0) * LAMPORTS_PER_SOL) - TX_FEE_LAMPORTS
-    if (lamports <= 0) { results.push({ publicKey: pk, recovered: 0 }); continue }
+  return sendDirect(ctx, targets, funding.publicKey, "max")
+}
+
+/**
+ * Each wallet → `to` (any address: ★, another wallet of the folder, or an outside address): `amount` SOL, or "max" =
+ * the whole balance minus the 5,000-lamport fee. Plain transfers signed by each source (GET /api/sol/blockhash →
+ * POST /api/sol/send). A source that is not backed up refuses before anything is sent.
+ */
+export async function sendDirect({ api, wallets }: Ctx, publicKeys: string[], to: string, amount: number | "max") {
+  for (const pk of publicKeys) wallets.assertBackedUp(pk) // the source keys move the money: all backed up, or nothing is sent
+  const toPk = new PublicKey(to)
+  const sol = new Map((await api.balances(publicKeys)).map((r) => [r.wallet, r.sol]))
+  const results: Array<{ publicKey: string; recovered: number; signature?: string; error?: string; skipped?: string }> = []
+  for (const pk of publicKeys) {
+    if (pk === to) { results.push({ publicKey: pk, recovered: 0, skipped: "is the destination" }); continue }
+    const balance = Math.round((sol.get(pk) ?? 0) * LAMPORTS_PER_SOL)
+    const lamports = amount === "max" ? balance - TX_FEE_LAMPORTS : Math.round(amount * LAMPORTS_PER_SOL)
+    if (lamports <= 0) { results.push({ publicKey: pk, recovered: 0, skipped: `holds ${(balance / LAMPORTS_PER_SOL).toFixed(6)} SOL, not even the fee` }); continue }
+    if (lamports + TX_FEE_LAMPORTS > balance) { results.push({ publicKey: pk, recovered: 0, error: `holds ${(balance / LAMPORTS_PER_SOL).toFixed(6)} SOL; ${(lamports / LAMPORTS_PER_SOL).toFixed(6)} + the fee is more than that (use Max)` }); continue }
     try {
-      wallets.assertBackedUp(pk) // the source key is what moves the money: it must be backed up
-      const signature = await api.transferSol(wallets.keypairOf(pk), fundingPk, 0, { lamports, confirm: false })
+      const signature = await api.transferSol(wallets.keypairOf(pk), toPk, 0, { lamports, confirm: false })
       results.push({ publicKey: pk, recovered: lamports / LAMPORTS_PER_SOL, signature })
     } catch (e) {
       results.push({ publicKey: pk, recovered: 0, error: e instanceof Error ? e.message : String(e) })
     }
   }
-  return { to: funding.publicKey, total: results.reduce((s, r) => s + r.recovered, 0), results }
+  return { to, total: results.reduce((s, r) => s + r.recovered, 0), results }
 }
 
 /** SPL Token / Token-2022 `CloseAccount` (instruction 9): account, destination (gets the rent), owner (signs). */

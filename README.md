@@ -44,7 +44,9 @@ base58 key. The ★ wallet is the main one: it pays for everything, receives gat
 ever added is ★, click ☆ on any row to move it. Click a label to rename it (an optional role tag lives there too). Per row:
 address (copy), SOL, the coin's balance when one is chosen on Trading, **Fund** (an amount, sent from ★) and **Key** (shows
 the secret, with copy). Tick rows and a bar appears: **Amount each · Fund from ★ · Fund via exchange ▾** (mode + venue
-inline; each wallet is paid by an exchange hot wallet instead of ★) **· Gather to ★ · Close empty token accounts · Export
+inline; each wallet is paid by an exchange hot wallet instead of ★) **· Gather to ★** (every selected wallet sends its whole
+balance minus exactly the fee) **· Send ▾** (every selected wallet sends an amount, or everything, to one address: ★, another
+wallet of the list, or any address you paste; direct transfers, no exchange) **· Close empty token accounts · Export
 keys · Archive** (the key files move to `archived/`, nothing is deleted). Every result is a toast; an API error is shown
 verbatim. Keys are files in the folder named at the top of the page; **Rewrite backups** restores missing ones.
 

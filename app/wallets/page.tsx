@@ -52,6 +52,10 @@ export default function WalletsPage() {
   // selection bar
   const [each, setEach] = React.useState(chain.defaultEach)
   const [exchangeOpen, setExchangeOpen] = React.useState(false)
+  // Send ▾: from every selected wallet to one address (★, a wallet of the list, or pasted), an amount each or Max
+  const [sendOpen, setSendOpen] = React.useState(false)
+  const [sendTo, setSendTo] = React.useState("")
+  const [sendAmt, setSendAmt] = React.useState("")
   const [mode, setMode] = React.useState<"float" | "fixed" | "private">("float")
   const [venue, setVenue] = React.useState("random")
 
@@ -158,6 +162,20 @@ export default function WalletsPage() {
     setLegs(r.legs)
     const failed = r.legs.filter((l) => l.error).length
     toast({ tone: failed ? "error" : "ok", sticky: failed > 0, title: `Fund via exchange: ${r.legs.length - failed}/${r.legs.length} order${r.legs.length === 1 ? "" : "s"} opened · ${mode} · ${a} ${chain.symbol} each`, detail: failed ? r.legs.filter((l) => l.error).map((l) => `${chain.short(l.publicKey)}: ${l.error}${l.code ? ` · ${l.code}` : ""}`).join("; ") : "Each wallet is paid by an exchange hot wallet, not by ★. Legs below update until they complete." })
+    await load()
+  })
+  const sendDirect = (amount: string | "max") => run("send", async () => {
+    const to = sendTo.trim()
+    if (!chain.isAddress(to)) throw { error: `Pick a destination: ★, a wallet of the list, or paste a ${chain.coinNoun.replace("mint address", "wallet address").replace("token address", "wallet address")}` }
+    const a = amount === "max" ? "max" : Number(amount)
+    if (a !== "max" && !(a > 0)) throw { error: `Enter the ${chain.symbol} amount each wallet sends, or press Max` }
+    const from = picked.filter((pk) => pk.toLowerCase() !== to.toLowerCase())
+    if (!from.length) throw { error: "The only selected wallet is the destination" }
+    if (!window.confirm(`Send ${a === "max" ? "everything (minus the fee)" : `${a} ${chain.symbol}`} from ${from.length} wallet${from.length === 1 ? "" : "s"} to ${chain.short(to)}?`)) return
+    const r = await post<{ to: string; results: Sent[] }>("/api/wallets/send", { publicKeys: from, to, amount: a })
+    const sent = r.results.reduce((s, x) => s + (x.recovered ?? x.eth ?? 0), 0)
+    const failed = r.results.filter((x) => x.error).length
+    toast({ tone: failed ? "error" : "ok", sticky: failed > 0, title: `Sent ${chain.fmt(sent)} ${chain.symbol} to ${chain.short(to)} from ${r.results.length - failed}/${r.results.length} wallet${r.results.length === 1 ? "" : "s"}`, detail: sentLines(r.results, (x) => <span>{chain.fmt(x.recovered ?? x.eth ?? 0)} {chain.symbol}</span>) })
     await load()
   })
   const gather = () => run("gather", async () => {
@@ -402,11 +420,28 @@ Anyone with the files controls the wallets.`)) return
             <Input inputMode="decimal" value={each} onChange={(e) => setEach(e.target.value)} className="h-8 w-24 font-mono" aria-label="Amount each" />
             <Button size="sm" onClick={() => void fund(picked.filter((pk) => pk !== main), each)} disabled={!!busy || noMain || picked.every((pk) => pk === main)} title={noMain ? "No ★ wallet yet" : `${each} ${chain.symbol} from ★ to each selected wallet`}>{busy === "fund" ? "Sending…" : "Fund from ★"}</Button>
             <Button size="sm" variant="secondary" onClick={() => setExchangeOpen((v) => !v)} disabled={!!busy || noMain || venues?.exchange === "off"} title={venues?.exchange === "off" ? "Exchange routing is switched off on the API right now" : "Each wallet is paid by an exchange hot wallet instead of by ★: less on-chain linkability"}>Fund via exchange {exchangeOpen ? "▴" : "▾"}</Button>
-            <Button size="sm" variant="outline" onClick={gather} disabled={!!busy || noMain} title={`Sweep every selected wallet's ${chain.symbol} (minus the fee) back to ★`}>{busy === "gather" ? "Sweeping…" : "Gather to ★"}</Button>
+            <Button size="sm" variant="outline" onClick={gather} disabled={!!busy || noMain} title={`Every selected wallet sends its whole ${chain.symbol} balance, minus exactly the transfer fee, to ★`}>{busy === "gather" ? "Sweeping…" : "Gather to ★"}</Button>
+            <Button size="sm" variant="secondary" onClick={() => setSendOpen((v) => !v)} disabled={!!busy} title="Send from every selected wallet to one address: ★, another wallet, or any address you paste. Direct transfers, no exchange.">Send ▾</Button>
             {chain.features.tokenAccounts ? <Button size="sm" variant="outline" onClick={closeAccounts} disabled={!!busy || noMain} title="Close every empty token account of the selected wallets; the rent goes to ★">{busy === "close" ? "Closing…" : "Close empty token accounts"}</Button> : null}
             <Button size="sm" variant="outline" onClick={exportKeys} disabled={!!busy}>{busy === "export" ? "Reading…" : "Export keys"}</Button>
             <Button size="sm" variant="outline" onClick={archive} disabled={!!busy || picked.includes(main ?? "")} title={picked.includes(main ?? "") ? "★ cannot be archived; star another wallet first" : "Move the key files to archived/ and drop the wallets from this list"}>{busy === "archive" ? "Archiving…" : "Archive"}</Button>
           </div>
+          {sendOpen ? (
+            <div className="flex flex-wrap items-center gap-2 border-t pt-2 text-sm">
+              <span className="text-muted-foreground">Send from the {picked.length} selected to</span>
+              <Select value={wallets.some((w) => w.publicKey === sendTo) ? sendTo : ""} onChange={(e) => setSendTo(e.target.value)} className="h-8 w-56 text-xs" aria-label="Destination wallet">
+                <option value="">a wallet of this list…</option>
+                {wallets.map((w) => <option key={w.publicKey} value={w.publicKey}>{w.publicKey === main ? "★ " : ""}{w.label} · {chain.short(w.publicKey)}</option>)}
+              </Select>
+              <span className="text-muted-foreground">or</span>
+              <Input value={sendTo} onChange={(e) => setSendTo(e.target.value.trim())} placeholder="paste any address" className="h-8 w-72 font-mono text-xs" aria-label="Destination address" />
+              <span className="text-muted-foreground mx-1">·</span>
+              <Input inputMode="decimal" value={sendAmt} onChange={(e) => setSendAmt(e.target.value)} placeholder={`${chain.symbol} each`} className="h-8 w-28 font-mono" aria-label="Amount each wallet sends" />
+              <Button size="sm" onClick={() => void sendDirect(sendAmt)} disabled={!!busy || !chain.isAddress(sendTo) || !(Number(sendAmt) > 0)}>{busy === "send" ? "Sending…" : `Send ${Number(sendAmt) > 0 ? `${sendAmt} ${chain.symbol}` : ""} each`}</Button>
+              <Button size="sm" variant="outline" onClick={() => void sendDirect("max")} disabled={!!busy || !chain.isAddress(sendTo)} title="Each wallet sends everything it holds minus the transfer fee">{busy === "send" ? "Sending…" : "Send max"}</Button>
+              <span className="text-muted-foreground w-full text-xs">Direct transfers signed by each wallet; nothing goes through an exchange. The destination can be outside this app.</span>
+            </div>
+          ) : null}
           {exchangeOpen ? (
             <div className="flex flex-wrap items-center gap-2 border-t pt-2 text-sm">
               <span className="text-muted-foreground">Mode</span>
