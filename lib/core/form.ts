@@ -17,7 +17,10 @@ export function readForm(b: Record<string, unknown>, defaultSlippage: number): L
   const s = (v: unknown) => (typeof v === "string" ? v.trim() : "")
   const o = (v: unknown): Record<string, unknown> => (v && typeof v === "object" ? (v as Record<string, unknown>) : {})
   const count = (v: unknown, max: number) => Math.max(0, Math.min(max, Math.floor(num(v, 0))))
-  /** `wallets: [{ publicKey, amount }]`: the explicit buyers of a group (bad entries dropped; at most `max`). */
+  /**
+   * `wallets: [{ publicKey, amount }]`: the explicit buyers of a group (at most `max`). `publicKey` null or "" means
+   * "a new wallet": the executor creates (and backs up) one for that row at launch. Bad or repeated keys are dropped.
+   */
   const buyers = (v: unknown, max: number): Buyer[] | undefined => {
     if (!Array.isArray(v)) return undefined
     const out: Buyer[] = []
@@ -25,7 +28,8 @@ export function readForm(b: Record<string, unknown>, defaultSlippage: number): L
       const e = o(x)
       const publicKey = s(e.publicKey)
       const amount = Math.max(0, num(e.amount, 0))
-      if (publicKey.length >= 32 && !out.some((b) => b.publicKey === publicKey)) out.push({ publicKey, amount })
+      if (!publicKey) out.push({ publicKey: null, amount })
+      else if (publicKey.length >= 32 && !out.some((b) => b.publicKey === publicKey)) out.push({ publicKey, amount })
     }
     return out.slice(0, max)
   }

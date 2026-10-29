@@ -18,6 +18,10 @@ export type ChainConfig = {
   explorerAddress: (address: string) => string
   explorerTx: (sig: string) => string
   coinLinks: (coin: string) => Array<{ label: string; href: string }>
+  /** GMGN's embeddable candle chart (gmgn.cc is their widget host; gmgn.ai refuses to be framed), or null when the chain has none */
+  chartUrl: (coin: string, theme: "dark" | "light") => string | null
+  /** the launch-log stream of this app, and one entry of it read into a common shape (the pump.fun and pons routes differ) */
+  launchLog: { path: (id: string) => string; read: (e: Record<string, unknown>) => { stage: string; message: string; done: boolean; error: boolean } }
   /** the "Set every amount to" pills, in the native coin */
   pills: string[]
   /** the default of the "Amount each" input (funding) and of a buy */
@@ -49,9 +53,15 @@ export const chain: ChainConfig = {
   explorerTx: (sig) => `https://solscan.io/tx/${sig}`,
   coinLinks: (mint) => [
     { label: "pump.fun", href: `https://pump.fun/coin/${mint}` },
+    { label: "gmgn", href: `https://gmgn.ai/sol/token/${mint}` },
     { label: "dexscreener", href: `https://dexscreener.com/solana/${mint}` },
     { label: "solscan", href: `https://solscan.io/token/${mint}` },
   ],
+  chartUrl: (mint, theme) => `https://www.gmgn.cc/kline/sol/${mint}?theme=${theme}`,
+  launchLog: {
+    path: (id) => `/api/launch/${id}/events`,
+    read: (e) => ({ stage: String(e.stage ?? ""), message: String(e.message ?? ""), done: e.stage === "done" || e.stage === "error", error: e.stage === "error" }),
+  },
   pills: ["0.01", "0.05", "0.1", "0.5", "1"],
   defaultEach: "0.05",
   defaultBuy: "0.05",

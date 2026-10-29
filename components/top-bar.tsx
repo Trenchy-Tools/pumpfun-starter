@@ -13,13 +13,13 @@ import { ThemeToggle } from "./theme-toggle"
 import { Button } from "./ui/button"
 
 const NAV = [
-  { href: "/wallets", label: "Wallets" },
   { href: "/launch", label: "Launch" },
   { href: "/trading", label: "Trading" },
+  { href: "/wallets", label: "Wallets" },
   { href: "/vanity", label: "Vanity" },
 ]
 
-/** logo · Wallets · Launch · Trading · Vanity · (right) API key · funding wallet · backups folder · theme · settings */
+/** logo · Launch · Trading · Wallets · Vanity · (right) API key · funding wallet · backups folder · theme · settings */
 export function TopBar() {
   const pathname = usePathname()
   const [status, setStatus] = useState<Status | null>(null)
@@ -37,7 +37,7 @@ export function TopBar() {
   return (
     <header className="bg-background/80 sticky top-0 z-40 border-b backdrop-blur-md">
       <div className="flex h-14 w-full items-center gap-6 px-5 sm:px-6">
-        <Link href="/wallets" aria-label="Home" className="flex text-[17px]">
+        <Link href="/launch" aria-label="Home" className="flex text-[17px]">
           <Logo />
         </Link>
         <nav className="flex items-center gap-1 text-sm">

@@ -47,8 +47,8 @@ const PRIORITY_FEE_SOL = 0.0005
  */
 const CUSTOM_PAIR_FEE_RESERVE = 0.002
 
-/** One picked buyer: a wallet of the folder and its buy, in the coin's quote asset. */
-export type Buyer = { publicKey: string; amount: number }
+/** One picked buyer: a wallet of the folder (or null = a new wallet, created at launch) and its buy, in the coin's quote asset. */
+export type Buyer = { publicKey: string | null; amount: number }
 export type BuyerGroup = { count: number; solEach: number; wallets?: Buyer[] }
 /** A buyer with its wallet record. */
 export type Picked = WalletInfo & { amount: number }
@@ -183,10 +183,11 @@ function solRows(env: Env, form: LaunchForm, custom: boolean): { rows: PlanRow[]
   const group = (role: Exclude<Role, "funding" | "trader">, g: BuyerGroup) => {
     const picked = explicit(g)
     if (picked) {
-      for (const b of picked) {
+      picked.forEach((b, i) => {
+        if (!b.publicKey) { rows.push({ role, label: `${role} ${i + 1} (new)`, publicKey: null, buy: b.amount, needSol: need(b.amount) }); return }
         const w = env.wallets.get(b.publicKey)
         rows.push({ role, label: w?.label ?? `${b.publicKey.slice(0, 6)}… (${notIn(env.wallets)})`, publicKey: b.publicKey, buy: b.amount, needSol: need(b.amount) })
-      }
+      })
       return
     }
     const have = env.wallets.list(role)
@@ -279,9 +280,12 @@ export function planProblems(plan: Plan): string[] {
 function pick(env: Env, role: Exclude<Role, "funding" | "trader">, g: BuyerGroup): Picked[] {
   const picked = explicit(g)
   if (picked) {
+    // "new wallet" rows (publicKey null) are created here, all at once, stored before anything else happens
+    const fresh = env.wallets.create(picked.filter((b) => !b.publicKey).length, role, role)
     return picked.map((b) => {
-      env.wallets.assertBackedUp(b.publicKey) // unknown or not backed up: NotBackedUpError
-      const w = env.wallets.get(b.publicKey)!
+      const publicKey = b.publicKey ?? fresh.shift()!.publicKey
+      env.wallets.assertBackedUp(publicKey) // unknown or not backed up: NotBackedUpError
+      const w = env.wallets.get(publicKey)!
       return { ...w, amount: b.amount }
     })
   }
@@ -300,6 +304,20 @@ function amounts(ws: Picked[], sym: string): string {
 }
 
 /**
+ * The form with every "new wallet" row (publicKey null) replaced by a wallet created now, so the plan, the funding and
+ * the launch all see the same keys. A form without such rows comes back as is. Creation stores the key first.
+ */
+export function materialize(env: Env, form: LaunchForm): LaunchForm {
+  const fill = <G extends BuyerGroup>(g: G, role: Exclude<Role, "funding" | "trader">): G => {
+    const picked = explicit(g)
+    if (!picked || !picked.some((b) => !b.publicKey)) return g
+    const fresh = env.wallets.create(picked.filter((b) => !b.publicKey).length, role, role)
+    return { ...g, wallets: picked.map((b) => ({ publicKey: b.publicKey ?? fresh.shift()!.publicKey, amount: b.amount })) }
+  }
+  return { ...form, bundle: fill(form.bundle, "bundle"), snipers: fill(form.snipers, "sniper"), holders: fill(form.holders, "holder") }
+}
+
+/**
  * Top up every buyer in the plan from the ★ wallet (plain SOL transfers, confirmed one by one). On a custom pair
  * this is the SOL reserve only: the quote asset must reach the wallets by other means (the plan lists the amounts).
  */
@@ -308,6 +326,7 @@ export async function fundPlan(env: Env, form: LaunchForm, note: (msg: string) =
   const funding = env.wallets.main()
   if (!funding) throw new Error("No ★ wallet yet: create or import one on the Wallets page")
   const fundingKp = env.wallets.keypairOf(funding.publicKey)
+  form = materialize(env, form)
   const plan = await fundingPlan(env, form)
   if (plan.refusal) throw new ApiError(plan.refusal.error, plan.refusal.status, plan.refusal.code, plan.refusal.hint, plan.refusal.docs)
   const buyers = [...pick(env, "bundle", form.bundle), ...pick(env, "sniper", form.snipers), ...pick(env, "holder", form.holders)].filter((w) => w.publicKey !== funding.publicKey)
@@ -364,7 +383,8 @@ export async function runLaunch(env: Env, rec: LaunchRecord, form: LaunchForm, e
   const saveLaunch = (r: LaunchRecord) => env.launches.save(r)
   const keypairOf = (pk: string) => env.wallets.keypairOf(pk)
   try {
-    // 0. plan: the pair, the options and (custom pair) every wallet's quote-asset balance
+    // 0. plan: the pair, the options and (custom pair) every wallet's quote-asset balance. "New wallet" rows are created first.
+    form = materialize(env, form)
     const plan = await fundingPlan(env, form)
     if (!plan.ok) throw new Error(`Not launched: ${planProblems(plan).join("; ")}`)
     const pair = await api.resolvePair(form.quoteMint)

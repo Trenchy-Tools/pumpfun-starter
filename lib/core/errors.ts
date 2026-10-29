@@ -63,5 +63,5 @@ export function errorBody(err: unknown, status?: number): { status: number; body
 export const DEMO_MODE_BODY = {
   error: "This hosted demo keeps no server state: wallets, launches and trades run in your browser.",
   code: "demo_mode",
-  hint: "Use the pages of this app (they call the TrenchyTools API straight from the browser), or clone the repo to run it on your own machine: https://github.com/Trenchy-Tools/pumpfun-starter",
+  hint: "Use the pages of this app (they call the TrenchyTools API straight from the browser), or clone the repo to run it on your own machine: https://github.com/Trenchy-Tools/trenchytools-pumpfun-launcher",
 }

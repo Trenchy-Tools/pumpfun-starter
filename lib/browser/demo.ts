@@ -22,7 +22,7 @@
 /** Built with NEXT_PUBLIC_DEMO=1: the hosted demo. Inlined at build time, so the unused branch is dropped. */
 export const DEMO = process.env.NEXT_PUBLIC_DEMO === "1"
 /** Where visitors clone the app to run it on their own machine. */
-export const REPO_URL = "https://github.com/Trenchy-Tools/pumpfun-starter"
+export const REPO_URL = "https://github.com/Trenchy-Tools/trenchytools-pumpfun-launcher"
 /** The API the demo talks to, straight from the browser (the CSP in next.config.ts allows exactly this host). */
 export const DEMO_API_URL = "https://api.trenchy.tools"
 /** The label of the per-visitor key: GET /api/create-api-key?label=demo-pumpfun */

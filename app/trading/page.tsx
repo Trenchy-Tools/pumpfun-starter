@@ -8,6 +8,7 @@
  */
 import * as React from "react"
 import { ExternalLink, RefreshCw } from "lucide-react"
+import { Chart } from "@/components/chart"
 import { FailureBox } from "@/components/failure"
 import { Button } from "@/components/ui/button"
 import { Checkbox, Input, Select } from "@/components/ui/input"
@@ -55,6 +56,10 @@ export default function TradingPage() {
   const [trades, setTrades] = React.useState<Trade[]>([])
   const [feed, setFeed] = React.useState<"off" | "connecting" | "live">("off")
   const [fees, setFees] = React.useState<Fees | null>(null)
+  // a launch that just happened (?launch=<id> from the Launch page): its log keeps streaming here while the holders buy
+  const [launchId, setLaunchId] = React.useState<string | null>(null)
+  const [launchLog, setLaunchLog] = React.useState<Array<{ stage: string; message: string; error: boolean }>>([])
+  const [launchDone, setLaunchDone] = React.useState(false)
 
   const valid = chain.isCoin(coin)
   const cp = chain.coinParam
@@ -66,12 +71,26 @@ export default function TradingPage() {
   const last = trades.find((t) => t.tokens > 0 && nativeOf(t) > 0)
   const price = last ? nativeOf(last) / last.tokens : null
 
-  // my launches + the coin remembered from last time
+  // my launches + the coin: ?mint= / ?token= in the address (the Launch page sends you here), else the one from last time
   React.useEffect(() => {
     get<{ launches: Launch[] }>("/api/launch").then((r) => setLaunches(r.launches.filter((l) => l.mint || l.token))).catch(() => {})
+    const q = new URLSearchParams(window.location.search)
+    const fromUrl = q.get(chain.coinParam)?.trim()
+    if (fromUrl && chain.isCoin(fromUrl)) { setCoin(fromUrl); setLaunchId(q.get("launch")); return }
     const c = readChosenCoin()
     if (c?.coin) setCoin(c.coin)
   }, [])
+  // the launch log of a coin launched a moment ago, until it says done
+  React.useEffect(() => {
+    if (!launchId) return
+    setLaunchLog([]); setLaunchDone(false)
+    return subscribe<Record<string, unknown>>(chain.launchLog.path(launchId), (raw) => {
+      const e = chain.launchLog.read(raw)
+      setLaunchLog((xs) => [...xs, e])
+      if (e.done) setLaunchDone(true)
+      if (e.stage === "holder" || e.stage === "holders" || e.stage === "sniper" || e.stage === "snipers" || e.done) void load()
+    })
+  }, [launchId]) // eslint-disable-line react-hooks/exhaustive-deps
   React.useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t) }, [])
 
   const load = React.useCallback(async () => {
@@ -217,6 +236,22 @@ export default function TradingPage() {
         </div>
       ) : <p className="text-muted-foreground text-sm">Pick one of your launches or paste a {chain.coinNoun}. Every wallet then shows its balance of the coin and can buy or sell from its row.</p>}
       <FailureBox failure={failure} />
+
+      {/* the launch that brought you here: its last line, the whole log on request */}
+      {launchId && launchLog.length ? (
+        <details className={`rounded-lg border px-3 py-2 text-xs ${launchLog.some((e) => e.error) ? "border-destructive/40" : launchDone ? "border-ok/40" : ""}`}>
+          <summary className="flex cursor-pointer items-center gap-2 select-none">
+            <Pill tone={launchLog.some((e) => e.error) ? "error" : launchDone ? "ok" : "warn"}>{launchDone ? "launch done" : "launch running"}</Pill>
+            <span className="truncate">{launchLog[launchLog.length - 1].message}</span>
+            <span className="text-muted-foreground ml-auto shrink-0">{launchLog.length} lines</span>
+          </summary>
+          <div className="mt-2 flex max-h-48 flex-col gap-0.5 overflow-y-auto border-t pt-2 font-mono">
+            {launchLog.map((e, i) => <div key={i} className={e.error ? "text-destructive" : ""}><span className="text-muted-foreground">[{e.stage}]</span> {e.message}</div>)}
+          </div>
+        </details>
+      ) : null}
+
+      {valid ? <Chart coin={coin} /> : null}
 
       {valid ? (
         <div className="grid gap-4 lg:grid-cols-[1fr_320px]">

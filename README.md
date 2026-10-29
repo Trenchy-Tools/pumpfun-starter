@@ -1,5 +1,3 @@
-**Start here → [trenchy.tools](https://trenchy.tools)** · part of [TrenchyTools](https://github.com/Trenchy-Tools) — one API key to launch and trade on pump.fun and pons.
-
 <!-- trenchytools:header -->
 <p align="center"><img src="./.github/social.png" alt="pump.fun starter" width="100%"></p>
 
@@ -64,16 +62,24 @@ Keep the folder. Anyone with a file controls that wallet. Losing it is losing th
 
 ## How a launch works
 
+The Launch page is three things: the coin (image, name, symbol), the buys (dev buy; how many **bundle buyers** and
+**holder wallets**, an amount each, every row a *new wallet* unless you pick an existing one) and the mint (random or
+vanity). Press **Launch**: the image goes to IPFS by itself, the new wallets are created (keys saved first), the ★ wallet
+funds every buyer, the bundle goes out, and the moment the coin is live the **Trading** page opens on it with the chart
+and your wallets. Pair, Mayhem, holder rewards, creator fee, dev wallet, slippage, snipers and the Jito switch sit under
+**Advanced ▾**.
+
 `lib/launch.ts`, top to bottom. Each step names the endpoint it calls:
 
-1. **Wallets** — the dev (★ unless changed) is the creator; the bundle, snipers and holders are the wallets you ticked under **Pick buyers**, each with its own amount (`bundle.wallets: [{ publicKey, amount }]`; the old `count × solEach` shape still works and picks by role); `assertBackedUp` on every key.
+0. **Image** — `POST /api/ipfs` with the image + name / symbol / description / links → `metadataUri` (done by the page as Launch starts; Simulate does it too).
+1. **Wallets** — the dev (★ unless changed) is the creator; the bundle, snipers and holders are the rows on the Launch page, each with its own amount (`bundle.wallets: [{ publicKey, amount }]`; `publicKey: null` = a new wallet, created and backed up before anything else; the old `count × solEach` shape still works and picks by role); `assertBackedUp` on every key.
 2. **Mint** — a vanity key from the pool (`POST /api/sol/vanity` ground it earlier) or `Keypair.generate()`, saved to the pool as used.
 3. **Funding** (optional) — SOL from the funding wallet to each buyer per the funding plan: buy + 0.5 % API fee + 0.01 SOL reserve; the dev also pays the Jito tip and 0.02 SOL table rent when a table is used. Plain transfers: `GET /api/sol/blockhash` → sign → `POST /api/sol/send` → `GET /api/sol/tx/:sig`.
 4. **Lookup table** (5–16 bundle buyers) — `POST /api/sol/lut` → sign + send each transaction → `GET /api/sol/lut/:address` until `ready`. Closed after the launch (`deactivate`, then `close` ~4 min later) to refund the rent.
 5. **Bundle** — `POST /api/sol/trade-local` with an **array**: the `create` (+ dev buy; its `priorityFee` is the Jito tip) followed by the buys (one wallet per transaction, or `buyers: [...]` + `lookupTable` for 4 per transaction) → sign each → `POST /api/sol/simulate` on the create → `POST /api/sol/bundle` → `GET /api/sol/bundle/:id` and `GET /api/sol/tx/:sig`. If Jito refuses or the bundle does not land, the create goes out alone through `POST /api/sol/send` and the buys follow one by one.
 6. **Snipers** — the moment the create is confirmed: `trade-local` buy → sign → `send`, one every `gapMs` (default 400 ms).
 7. **Holders** — after `delayS`, buys spread over `windowS` (default 120 s) with jitter.
-8. **Record** — `launches.json` (mint, wallets by role, signatures, lookup table). Every stage streams to the Launch page as server-sent events (`GET /api/launch/:id/events`).
+8. **Record** — `launches.json` (mint, wallets by role, signatures, lookup table). Every stage streams to the Launch page as server-sent events (`GET /api/launch/:id/events`); the `live` stage sends the browser to `/trading?mint=…&launch=<id>`, where the same stream keeps showing the holder buys.
 
 **Simulate** runs the checks (key, funding wallet file, balance vs plan) and builds the create + dev buy with a throwaway mint, then `POST /api/sol/simulate`. Nothing is sent.
 
@@ -107,7 +113,9 @@ Docs: [Custom pairs](https://trenchy.tools/docs/sol/pairs) ·
 
 ## Trading & timed sells
 
-Pick one of your launches or paste a mint. Every wallet is a row with its SOL, its tokens and their value
+Pick one of your launches or paste a mint (a launch brings you here by itself: `/trading?mint=…`). GMGN's candle chart
+sits under the header (`https://www.gmgn.cc/kline/sol/<mint>`, their embeddable widget host; `open on GMGN` next to it).
+Every wallet is a row with its SOL, its tokens and their value
 (`GET /api/sol/balances?wallets=…&mint=…`), then **[amount] Buy** and **25% · 50% · 100%** sell buttons that act at once; the
 result (or the API's error, verbatim) is a toast. Tick rows for the bar: **Buy [x] each · Sell 25 / 50 / 100 % of selected ·
 Timed sell ▾** (*in N minutes sell X %*, kept in server memory, `lib/timers.ts`). Each trade is `POST /api/sol/trade-local`

@@ -17,6 +17,8 @@ const CSP = [
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
+  // the Trading page embeds GMGN's chart widget
+  "frame-src https://www.gmgn.cc",
   "frame-ancestors 'none'",
 ].join("; ")
 
