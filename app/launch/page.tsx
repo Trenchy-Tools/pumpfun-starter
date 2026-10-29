@@ -343,7 +343,7 @@ export default function LaunchPage() {
               <Rows rows={holders} onChange={setHolders} prefix="H" />
             </div>
           </div>
-          <p className="text-muted-foreground text-xs">"new wallet" rows are created and saved {DEMO ? "in this browser (the backup downloads itself)" : "to the folder"} when you press Launch; pick an existing wallet to reuse one.</p>
+          <p className="text-muted-foreground text-xs"><span className="text-foreground font-medium">How the buyers get their money:</span> a "new wallet" row is created when you press Launch (its key is saved {DEMO ? "in this browser, the backup downloads itself" : "to the folder"} first), then the dev wallet sends every buyer its buy + the 0.5 % fee + 0.01 SOL for gas, and only then the coin is created. So the dev wallet must hold the Cost total on the right. Pick an existing wallet in a row to use one that is already funded.</p>
         </Card>
 
         {/* ── the mint ── */}

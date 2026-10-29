@@ -474,7 +474,16 @@ function tradeFeed(mint: string): EventStream {
       ws = new WebSocket(a.wsUrl())
       ws.onopen = () => {
         ws?.send(trading.tradeSubscription(mint))
-        if (first) { first = false; send({ type: "initial", trades: [] }) }
+        if (first) {
+          first = false
+          send({ type: "initial", trades: [] })
+          // the history (GET /api/sol/trades): the dev buy and the bundle, everything before this tab subscribed
+          void a.tradeHistory(mint, 100).then((h) => {
+            const trades: ReturnType<typeof trading.parseTrade>[] = []
+            for (const raw of h.trades) { const t = trading.parseTrade(JSON.stringify(raw), mint, (trader) => walletStore.get(trader) ?? undefined); if (t && !seen.has(t.signature)) { seen.add(t.signature); trades.push(t) } }
+            if (!stopped) send({ type: "initial", trades })
+          }).catch(() => {})
+        }
       }
       ws.onmessage = (m) => {
         const t = trading.parseTrade(String(m.data), mint, (trader) => walletStore.get(trader) ?? undefined)

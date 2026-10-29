@@ -24,8 +24,32 @@ export const collectCreatorFees = (mint: string) => core.collectCreatorFees(serv
 
 // ── live trades: one websocket to wss://…/api/sol/data, subscribeTokenTrade per coin ─────────────────────────────
 
-type Feed = { ws: WebSocket | null; url: string | null; mint: string | null; trades: LiveTrade[]; seen: Set<string>; listeners: Set<(t: LiveTrade) => void> }
-const feed = serverState<Feed>("feed", () => ({ ws: null, url: null, mint: null, trades: [], seen: new Set(), listeners: new Set() }))
+type Feed = { ws: WebSocket | null; url: string | null; mint: string | null; trades: LiveTrade[]; seen: Set<string>; listeners: Set<(t: LiveTrade) => void>; backfilled: string | null }
+const feed = serverState<Feed>("feed", () => ({ ws: null, url: null, mint: null, trades: [], seen: new Set(), listeners: new Set(), backfilled: null }))
+
+/**
+ * The coin's history (GET /api/sol/trades: the dev buy, the bundle, everything before this page subscribed), merged
+ * into the tape once per followed coin. Returns the whole tape, newest first.
+ */
+export async function backfillMint(mint: string): Promise<LiveTrade[]> {
+  if (feed.mint !== mint || feed.backfilled === mint) return feed.trades
+  feed.backfilled = mint
+  const api = trenchy()
+  if (!api.configured) return feed.trades
+  try {
+    const h = await api.tradeHistory(mint, 100)
+    const lookup = (trader: string) => listWallets().find((w) => w.publicKey === trader)
+    for (const raw of h.trades) {
+      const t = core.parseTrade(JSON.stringify(raw), mint, lookup)
+      if (!t || feed.seen.has(t.signature)) continue
+      feed.seen.add(t.signature)
+      feed.trades.push(t)
+    }
+    feed.trades.sort((a, b) => b.timestamp - a.timestamp)
+    if (feed.trades.length > 300) feed.trades.length = 300
+  } catch (e) { console.warn("[feed] history:", e instanceof Error ? e.message : e) }
+  return feed.trades
+}
 
 function connect(): void {
   if (!feed.url) return

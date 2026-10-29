@@ -205,6 +205,9 @@ export class Trenchy {
   /** GET /api/me: the key's prefix and 30-day usage. The "Connected" check. */
   me() { return this.get<{ keyPrefix?: string; usage30d?: unknown[] }>("/api/me") }
 
+  /** GET /api/sol/trades?mint=&limit=: the coin's past trades, newest first, in the websocket's payload shape (the tape's history). */
+  tradeHistory(mint: string, limit = 100) { return this.get<{ mint: string; trades: Array<Record<string, unknown>>; scanned: number }>(`/api/sol/trades?mint=${mint}&limit=${limit}`) }
+
   // ── building transactions ───────────────────────────────────────────────
 
   /** POST /api/sol/trade-local (one object): an unsigned buy / sell / create / collectCreatorFee. Sign it, then send(). */
